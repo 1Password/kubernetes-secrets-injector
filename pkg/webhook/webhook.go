@@ -398,11 +398,28 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 		},
 		{
 			Name:  "OP_INTEGRATION_BUILDNUMBER",
-			Value: version.Version,
+			Value: makeBuildVersion(version.Version),
 		},
 	}
 
 	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
+}
+
+func makeBuildVersion(version string) string {
+	parts := strings.Split(strings.ReplaceAll(version, "-beta", ""), ".")
+	buildVersion := parts[0]
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) == 1 {
+			buildVersion += "0" + parts[i]
+		} else {
+			buildVersion += parts[i]
+		}
+	}
+	fmt.Println(len(parts))
+	if len(parts) != 3 {
+		return buildVersion
+	}
+	return buildVersion + "01"
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
