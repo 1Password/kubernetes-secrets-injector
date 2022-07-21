@@ -415,7 +415,6 @@ func makeBuildVersion(version string) string {
 			buildVersion += parts[i]
 		}
 	}
-	fmt.Println(len(parts))
 	if len(parts) != 3 {
 		return buildVersion
 	}
