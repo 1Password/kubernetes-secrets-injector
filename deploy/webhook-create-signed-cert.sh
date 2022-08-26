@@ -1,6 +1,20 @@
 #!/bin/bash
+#
+# Copyright 2020 The Kubeflow Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-set -e
+set -ex
 
 usage() {
     cat <<EOF
@@ -41,9 +55,9 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[ -z "${service}" ] && service=sidecar-injector-webhook-svc
-[ -z "${secret}" ] && secret=sidecar-injector-webhook-certs
-[ -z "${namespace}" ] && namespace=default
+[ -z ${service} ] && service=cache-server
+[ -z ${secret} ] && secret=webhook-server-tls
+[ -z ${namespace} ] && namespace=kubeflow
 
 if [ ! -x "$(command -v openssl)" ]; then
     echo "openssl not found"
@@ -54,7 +68,11 @@ csrName=${service}.${namespace}
 tmpdir=$(mktemp -d)
 echo "creating certs in tmpdir ${tmpdir} "
 
-cat <<EOF >> "${tmpdir}"/csr.conf
+# create csr config file for csr generation. 
+# [req] is for csr with distinguished_name setting.
+# [v3_req] is extensions to add to a certificate request in this case is for setting key constraints and usages.
+# [alt_names] specifies additional subject identities. So the keys can be matched by different DNS names. 
+cat <<EOF >> ${tmpdir}/csr.conf
 [req]
 req_extensions = v3_req
 distinguished_name = req_distinguished_name
@@ -70,8 +88,10 @@ DNS.2 = ${service}.${namespace}
 DNS.3 = ${service}.${namespace}.svc
 EOF
 
-openssl genrsa -out "${tmpdir}"/server-key.pem 2048
-openssl req -new -key "${tmpdir}"/server-key.pem -subj "/CN=${service}.${namespace}.svc" -out "${tmpdir}"/server.csr -config "${tmpdir}"/csr.conf
+openssl genrsa -out ${tmpdir}/server-key.pem 2048
+openssl req -new -key ${tmpdir}/server-key.pem -subj "/CN=system:node:${service}.${namespace}.svc;/O=system:nodes" -out ${tmpdir}/server.csr -config ${tmpdir}/csr.conf
+
+echo "start running kubectl..."
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
 kubectl delete csr ${csrName} 2>/dev/null || true
@@ -83,10 +103,10 @@ kind: CertificateSigningRequest
 metadata:
   name: ${csrName}
 spec:
-  signerName: kubernetes.io/kube-apiserver-client
   groups:
   - system:authenticated
-  request: $(< "${tmpdir}"/server.csr base64 | tr -d '\n')
+  request: $(cat ${tmpdir}/server.csr | base64 | tr -d '\n')
+  signerName: kubernetes.io/kubelet-serving
   usages:
   - digital signature
   - key encipherment
@@ -95,17 +115,17 @@ EOF
 
 # verify CSR has been created
 while true; do
-    if kubectl get csr ${csrName}; then
+    kubectl get csr ${csrName}
+    if [ "$?" -eq 0 ]; then
         break
-    else
-        sleep 1
     fi
+    sleep 1
 done
 
 # approve and fetch the signed certificate
 kubectl certificate approve ${csrName}
 # verify certificate has been signed
-for _ in $(seq 10); do
+for x in $(seq 10); do
     serverCert=$(kubectl get csr ${csrName} -o jsonpath='{.status.certificate}')
     if [[ ${serverCert} != '' ]]; then
         break
@@ -116,12 +136,11 @@ if [[ ${serverCert} == '' ]]; then
     echo "ERROR: After approving csr ${csrName}, the signed certificate did not appear on the resource. Giving up after 10 attempts." >&2
     exit 1
 fi
-echo "${serverCert}" | openssl base64 -d -A -out "${tmpdir}"/server-cert.pem
-
+echo ${serverCert} | openssl base64 -d -A -out ${tmpdir}/server-cert.pem
 
 # create the secret with CA cert and server cert/key
 kubectl create secret generic ${secret} \
-        --from-file=key.pem="${tmpdir}"/server-key.pem \
-        --from-file=cert.pem="${tmpdir}"/server-cert.pem \
+        --from-file=key.pem=${tmpdir}/server-key.pem \
+        --from-file=cert.pem=${tmpdir}/server-cert.pem \
         --dry-run -o yaml |
     kubectl -n ${namespace} apply -f -
