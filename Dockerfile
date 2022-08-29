@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.17 as builder
+FROM golang:1.18 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -7,8 +7,9 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 # Copy the go source
-COPY secret-injector/cmd/main.go secret-injector/main.go
-COPY secret-injector/pkg/ secret-injector/pkg/
+COPY cmd/main.go main.go
+COPY pkg/ pkg/
+COPY version/ version/
 COPY vendor/ vendor/
 # Build
 ARG secret_injector_version=dev
@@ -17,7 +18,7 @@ RUN CGO_ENABLED=0 \
     go build \
     -ldflags "-X \"github.com/1Password/onepassword-operator/secret-injector/version.Version=$secret_injector_version\"" \
     -mod vendor \
-    -a -o injector secret-injector/main.go
+    -a -o injector main.go
 
 # Use distroless as minimal base image to package the secret-injector binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -27,4 +28,3 @@ COPY --from=builder /workspace/injector .
 USER nonroot:nonroot
 
 ENTRYPOINT ["/injector"]
-
