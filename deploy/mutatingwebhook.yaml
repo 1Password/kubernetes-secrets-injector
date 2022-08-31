@@ -5,7 +5,7 @@ metadata:
   labels:
     app: op-injector
 webhooks:
-  - name: op-injector.1password.com
+  - name: operator.1password.io
     failurePolicy: Fail
     clientConfig:
       service:
