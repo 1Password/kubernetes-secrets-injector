@@ -67,6 +67,8 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 
 ## Setup and Deployment
 
+The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see our [helm charts documentation](https://github.com/1Password/connect-helm-charts) to do that.
+
 The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
 
 For managing TLS certifcates for your cluster please see the [official documentation](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/). The certificate and key generated in the offical documentation must be set in the [deployment](deploy/deployment.yaml) arguments (`tlsCertFile` and `tlsKeyFile` respectively) for the Secret injector.
