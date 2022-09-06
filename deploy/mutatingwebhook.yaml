@@ -5,7 +5,7 @@ metadata:
   labels:
     app: op-secret-injector
 webhooks:
-- name: op-secret-injector.1password
+- name: operator.1password.io
   failurePolicy: Fail
   clientConfig:
     service:
