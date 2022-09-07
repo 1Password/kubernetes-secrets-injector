@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: op-secret-injector-webhook-deployment
-  namespace: op-secret-injector
   labels:
     app: op-secret-injector
 spec:
@@ -15,17 +14,21 @@ spec:
       labels:
         app: op-secret-injector
     spec:
+      serviceAccountName: op-secret-injector-webhook
       containers:
         - name: op-secret-injector
           image: 1password/kubernetes-secret-injector:latest
           imagePullPolicy: Never
           args:
-          - -tlsCertFile=/etc/webhook/certs/cert.pem
-          - -tlsKeyFile=/etc/webhook/certs/key.pem
+          - -service-name=op-secret-injector-webhook
           - -alsologtostderr
           - -v=4
           - 2>&1
           env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           - name: OP_CONNECT_HOST
             value: http://onepassword-connect:8080/
           - name: OP_CONNECT_TOKEN_NAME
@@ -36,7 +39,7 @@ spec:
           - name: webhook-certs
             mountPath: /etc/webhook/certs
             readOnly: true
-      volumes:
-      - name: webhook-certs
-        secret:
-          secretName: op-secret-injector-webhook-certs
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "/bin/sh", "-c", "/prestop.sh" ]
