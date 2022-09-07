@@ -67,8 +67,17 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 
 ## Setup and Deployment
 
-The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see our [helm charts documentation](https://github.com/1Password/connect-helm-charts) to do that.
+### Prerequisites:
 
+- [docker installed](https://docs.docker.com/get-docker/)
+- [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
+- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
+
+### 1. Setup and deploy 1Password Connect
+The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see [Prerequisites section](#prerequisites) to do that.
+
+### 2. Secure connection to inject secrets
 The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
 
 For managing TLS certifcates for your cluster please see the [official documentation](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/). The certificate and key generated in the offical documentation must be set in the [deployment](deploy/deployment.yaml) arguments (`tlsCertFile` and `tlsKeyFile` respectively) for the Secret injector.
@@ -103,16 +112,7 @@ webhooks:
       op-secret-injection: enabled
 ```
 
-You can automate this step using the script by [morvencao](https://github.com/morvencao/kube-mutating-webhook-tutorial).
-
-```
-cat deploy/mutatingwebhook.yaml | \
-    deploy/webhook-patch-ca-bundle.sh > \
-    deploy/mutatingwebhook-ca-bundle.yaml
-```
-
-Lastly, we must apply the deployment, service, and mutating webhook configuration to kubernetes:
-
+### 3.Deploy injector
 ```
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
