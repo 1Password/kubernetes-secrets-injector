@@ -10,8 +10,6 @@ import (
 
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,8 +22,6 @@ const (
 
 	// binVolumeMountPath is the mount path where the OP CLI binary can be found.
 	binVolumeMountPath = "/op/bin/"
-
-	connectTokenEnv = "OP_CONNECT_TOKEN"
 )
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
@@ -49,9 +45,6 @@ var (
 	runtimeScheme = runtime.NewScheme()
 	codecs        = serializer.NewCodecFactory(runtimeScheme)
 	deserializer  = codecs.UniversalDeserializer()
-
-	// (https://github.com/kubernetes/kubernetes/issues/57982)
-	defaulter = runtime.ObjectDefaulter(runtimeScheme)
 )
 
 const (
@@ -76,21 +69,6 @@ type patchOperation struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
-}
-
-func init() {
-	_ = corev1.AddToScheme(runtimeScheme)
-	_ = admissionregistrationv1.AddToScheme(runtimeScheme)
-	_ = v1.AddToScheme(runtimeScheme)
-}
-
-func applyDefaultsWorkaround(containers []corev1.Container, volumes []corev1.Volume) {
-	defaulter.Default(&corev1.Pod{
-		Spec: corev1.PodSpec{
-			Containers: containers,
-			Volumes:    volumes,
-		},
-	})
 }
 
 // Check if the pod should have secrets injected

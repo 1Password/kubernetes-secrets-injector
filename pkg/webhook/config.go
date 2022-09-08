@@ -10,6 +10,7 @@ const (
 	connectTokenSecretKeyEnv    = "OP_CONNECT_TOKEN_KEY"
 	connectTokenSecretNameEnv   = "OP_CONNECT_TOKEN_NAME"
 	connectHostEnv              = "OP_CONNECT_HOST"
+	connectTokenEnv             = "OP_CONNECT_TOKEN"
 	serviceAccountSecretKeyEnv  = "OP_SERVICE_ACCOUNT_TOKEN_KEY"
 	serviceAccountSecretNameEnv = "OP_SERVICE_ACCOUNT_SECRET_NAME"
 )
