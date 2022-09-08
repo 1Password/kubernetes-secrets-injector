@@ -135,6 +135,6 @@ kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
 If you are trouble getting secrets injected in your pod, check the following:
 
 1. Check that that the namespace of your pod has the `op-secret-injection=enabled` label
-2. Check that the `caBundle` in `mutatingwebhookconfiguration.yaml` is set with a correct value
-3. Ensure that the 1Password Secret Injector webhook is running (`op-secret-injector` by default).
+2. Check that the `caBundle` in `mutatingwebhook-ca-bundle.yaml` is set with a correct value
+3. Ensure that the 1Password Secret Injector webhook is running (`op-injector` by default).
 4. Check that your container has a `command` field specifying the command to run the app in your container
