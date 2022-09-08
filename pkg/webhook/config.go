@@ -25,25 +25,30 @@ type ServiceAccountConfig struct {
 }
 
 type ConnectConfig struct {
-	Host      string // the host in which a connect server is running
-	TokenName string // the token name of the secret that stores the connect token
-	TokenKey  string // the name of the data field in the secret the stores the connect token
+	Host       string // the host in which a connect server is running
+	SecretName string // the token name of the secret that stores the connect token
+	TokenKey   string // the name of the data field in the secret the stores the connect token
 }
 
 func CreateWebhookConfig() Config {
 	var config Config
 
-	if serviceAccountConfig := createServiceAccountConfig(serviceAccountSecretNameEnv, serviceAccountSecretKeyEnv); serviceAccountConfig != nil {
+	serviceAccountConfig := createServiceAccountConfig(serviceAccountSecretNameEnv, serviceAccountSecretKeyEnv)
+	connectConfig := createConnectConfig(connectHostEnv, connectTokenSecretNameEnv, connectTokenSecretKeyEnv)
+
+	if serviceAccountConfig != nil {
 		config = Config{
 			ServiceAccount: serviceAccountConfig,
 		}
-		glog.Info("Using Service Account integration")
-	} else {
-		connectConfig := createConnectConfig(connectHostEnv, connectTokenSecretNameEnv, connectTokenSecretKeyEnv)
+		glog.Info("Use Service Account to retrieve secrets")
+	} else if connectConfig != nil {
 		config = Config{
 			Connect: connectConfig,
 		}
-		glog.Info("Using with Connect integration")
+		glog.Info("Use Connect to retrieve secrets")
+	} else {
+		glog.Error("Error creating webhook config. Provide valid OP_CONNECT_* or OP_SERVICE_ACCOUNT_* env variables.")
+		os.Exit(1)
 	}
 
 	return config
@@ -72,21 +77,24 @@ func createConnectConfig(host string, secretName string, dataKey string) *Connec
 	connectHost, present := os.LookupEnv(connectHostEnv)
 	if !present || connectHost == "" {
 		glog.Error("Connect host not set")
+		return nil
 	}
 
 	connectTokenName, present := os.LookupEnv(secretName)
 	if !present || connectTokenName == "" {
 		glog.Error("Connect token name not set")
+		return nil
 	}
 
 	connectTokenKey, present := os.LookupEnv(dataKey)
 	if !present || connectTokenKey == "" {
 		glog.Error("Connect token key not set")
+		return nil
 	}
 
 	return &ConnectConfig{
-		Host:      connectHost,
-		TokenName: connectTokenName,
-		TokenKey:  connectTokenKey,
+		Host:       connectHost,
+		SecretName: connectTokenName,
+		TokenKey:   connectTokenKey,
 	}
 }
