@@ -1,42 +1,42 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: op-secret-injector-webhook-deployment
-  namespace: op-secret-injector
+  name: op-injector-pod
+  namespace: op-injector
   labels:
-    app: op-secret-injector
+    app: op-injector
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: op-secret-injector
+      app: op-injector
   template:
     metadata:
       labels:
-        app: op-secret-injector
+        app: op-injector
     spec:
       containers:
-        - name: op-secret-injector
-          image: 1password/kubernetes-secret-injector:latest
+        - name: op-injector
+          image: 1password/kubernetes-injector:latest
           imagePullPolicy: Never
           args:
-          - -tlsCertFile=/etc/webhook/certs/cert.pem
-          - -tlsKeyFile=/etc/webhook/certs/key.pem
-          - -alsologtostderr
-          - -v=4
-          - 2>&1
+            - -tlsCertFile=/etc/webhook/certs/cert.pem
+            - -tlsKeyFile=/etc/webhook/certs/key.pem
+            - -alsologtostderr
+            - -v=4
+            - 2>&1
           env:
-          - name: OP_CONNECT_HOST
-            value: http://onepassword-connect:8080/
-          - name: OP_CONNECT_TOKEN_NAME
-            value: onepassword-token
-          - name: OP_CONNECT_TOKEN_KEY
-            value: token
+            - name: OP_CONNECT_HOST
+              value: http://onepassword-connect:8080/
+            - name: OP_CONNECT_TOKEN_NAME
+              value: onepassword-token
+            - name: OP_CONNECT_TOKEN_KEY
+              value: token
           volumeMounts:
-          - name: webhook-certs
-            mountPath: /etc/webhook/certs
-            readOnly: true
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
       volumes:
-      - name: webhook-certs
-        secret:
-          secretName: op-secret-injector-webhook-certs
+        - name: webhook-certs
+          secret:
+            secretName: op-injector-certs

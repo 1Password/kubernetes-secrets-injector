@@ -1,23 +1,25 @@
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: op-secret-injector-webhook-config
+  name: op-injector-webhook-config
   labels:
-    app: op-secret-injector
+    app: op-injector
 webhooks:
-- name: operator.1password.io
-  failurePolicy: Fail
-  clientConfig:
-    service:
-      name: op-secret-injector-webhook-service
-      namespace: op-secret-injector
-      path: "/inject"
-    caBundle: ${CA_BUNDLE}
-  rules:
-  - operations: ["CREATE", "UPDATE"]
-    apiGroups: [""]
-    apiVersions: ["v1"]
-    resources: ["pods"]
-  namespaceSelector:
-    matchLabels:
-      op-secret-injection: enabled
+  - name: operator.1password.io
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: op-injector-svc
+        namespace: op-injector
+        path: "/inject"
+      caBundle: ${CA_BUNDLE}
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        op-secret-injection: enabled
