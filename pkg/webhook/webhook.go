@@ -325,46 +325,52 @@ func createOPConnectPatch(container *corev1.Container, containerIndex int, confi
 	var patch []patchOperation
 	envs := []corev1.EnvVar{}
 
-	// if connect configuration is already set in the container do not overwrite it
-	// hostConfig, tokenConfig := isConnectConfigurationSet(container)
-	serviceAccountConfig := isServiceAccountConfigurationSet(container)
+	if config.Connect != nil {
+		// if Connect configuration is already set in the container do not overwrite it
+		hostConfig, tokenConfig := isConnectConfigurationSet(container)
 
-	// if !hostConfig {
-	// 	connectHostEnvVar := corev1.EnvVar{
-	// 		Name:  "OP_CONNECT_HOST",
-	// 		Value: config.ConnectHost,
-	// 	}
-	// 	envs = append(envs, connectHostEnvVar)
-	// }
+		if !hostConfig {
+			connectHostEnvVar := corev1.EnvVar{
+				Name:  "OP_CONNECT_HOST",
+				Value: config.Connect.Host,
+			}
+			envs = append(envs, connectHostEnvVar)
+		}
 
-	// if !tokenConfig {
-	// 	connectTokenEnvVar := corev1.EnvVar{
-	// 		Name: "OP_CONNECT_TOKEN",
-	// 		ValueFrom: &corev1.EnvVarSource{
-	// 			SecretKeyRef: &corev1.SecretKeySelector{
-	// 				Key: config.ConnectTokenKey,
-	// 				LocalObjectReference: corev1.LocalObjectReference{
-	// 					Name: config.ConnectTokenName,
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	envs = append(envs, connectTokenEnvVar)
-	// }
-
-	if !serviceAccountConfig {
-		serviceAccountTokenEnvVar := corev1.EnvVar{
-			Name: "OP_SERVICE_ACCOUNT_TOKEN",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					Key: config.ServiceAccount.TokenKey,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: config.ServiceAccount.SecretName,
+		if !tokenConfig {
+			connectTokenEnvVar := corev1.EnvVar{
+				Name: "OP_CONNECT_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: config.Connect.TokenKey,
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: config.Connect.SecretName,
+						},
 					},
 				},
-			},
+			}
+			envs = append(envs, connectTokenEnvVar)
 		}
-		envs = append(envs, serviceAccountTokenEnvVar)
+	}
+
+	if config.ServiceAccount != nil {
+		// if Service Account configuration is already set in the container do not overwrite it
+		serviceAccountConfig := isServiceAccountConfigurationSet(container)
+
+		if !serviceAccountConfig {
+			serviceAccountTokenEnvVar := corev1.EnvVar{
+				Name: "OP_SERVICE_ACCOUNT_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: config.ServiceAccount.TokenKey,
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: config.ServiceAccount.SecretName,
+						},
+					},
+				},
+			}
+			envs = append(envs, serviceAccountTokenEnvVar)
+		}
 	}
 
 	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)

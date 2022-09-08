@@ -31,27 +31,18 @@ type ConnectConfig struct {
 }
 
 func CreateWebhookConfig() Config {
-	var config Config
-
 	serviceAccountConfig := createServiceAccountConfig(serviceAccountSecretNameEnv, serviceAccountSecretKeyEnv)
 	connectConfig := createConnectConfig(connectHostEnv, connectTokenSecretNameEnv, connectTokenSecretKeyEnv)
 
-	if serviceAccountConfig != nil {
-		config = Config{
-			ServiceAccount: serviceAccountConfig,
-		}
-		glog.Info("Use Service Account to retrieve secrets")
-	} else if connectConfig != nil {
-		config = Config{
-			Connect: connectConfig,
-		}
-		glog.Info("Use Connect to retrieve secrets")
-	} else {
+	if serviceAccountConfig == nil && connectConfig == nil {
 		glog.Error("Error creating webhook config. Provide valid OP_CONNECT_* or OP_SERVICE_ACCOUNT_* env variables.")
 		os.Exit(1)
 	}
 
-	return config
+	return Config{
+		ServiceAccount: serviceAccountConfig,
+		Connect:        connectConfig,
+	}
 }
 
 func createServiceAccountConfig(secretName string, dataKey string) *ServiceAccountConfig {
@@ -66,6 +57,8 @@ func createServiceAccountConfig(secretName string, dataKey string) *ServiceAccou
 		glog.Info("Service Account secret key not set")
 		return nil
 	}
+
+	glog.Info("Service Account config is set")
 
 	return &ServiceAccountConfig{
 		SecretName: serviceAccountTokenSecretName,
@@ -91,6 +84,8 @@ func createConnectConfig(host string, secretName string, dataKey string) *Connec
 		glog.Error("Connect token key not set")
 		return nil
 	}
+
+	glog.Info("Connect config is set")
 
 	return &ConnectConfig{
 		Host:       connectHost,
