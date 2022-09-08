@@ -75,9 +75,11 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 - [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
 
 ### 1. Setup and deploy 1Password Connect
+
 The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see [Prerequisites section](#prerequisites) to do that.
 
 ### 2. Secure connection to inject secrets
+
 The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
 
 For managing TLS certifcates for your cluster please see the [official documentation](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/). The certificate and key generated in the offical documentation must be set in the [deployment](deploy/deployment.yaml) arguments (`tlsCertFile` and `tlsKeyFile` respectively) for the Secret injector.
@@ -87,32 +89,41 @@ In additon to setting the tlsCert and tlsKey for the Secret Injector service, we
 `export CA_BUNDLE=$(kubectl get configmap -n kube-system extension-apiserver-authentication -o=jsonpath='{.data.client-ca-file}' | base64 | tr -d '\n')`
 
 ```
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: op-secret-injector-webhook-config
+  name: op-injector-webhook-config
   labels:
-    app: op-secret-injector
+    app: op-injector
 webhooks:
-- name: op-secret-injector.1password
-  failurePolicy: Fail
-  clientConfig:
-    service:
-      name: op-secret-injector-webhook-service
-      namespace: op-secret-injector
-      path: "/inject"
-    caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
-  rules:
-  - operations: ["CREATE", "UPDATE"]
-    apiGroups: [""]
-    apiVersions: ["v1"]
-    resources: ["pods"]
-  namespaceSelector:
-    matchLabels:
-      op-secret-injection: enabled
+  - name: operator.1password.io
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: op-injector-svc
+        namespace: op-injector
+        path: "/inject"
+      caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        op-secret-injection: enabled
 ```
 
-### 3.Deploy injector
+### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
+
+```
+kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
+```
+
+### 4.Deploy injector
+
 ```
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
