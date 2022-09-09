@@ -67,18 +67,81 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 
 ## Setup and Deployment
 
+The 1Password Secrets Injector for Kubernetes can use 1Password Connect or Service Account to retrieve items.
+Service Accounts are currently in Beta and are only available to select users.
+
 ### Prerequisites:
 
 - [docker installed](https://docs.docker.com/get-docker/)
 - [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
-- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
+
+Follow the [Using with 1Password Connect guide](#using-1password-connect) if you want to go with 1Password Connect, or [Using with Service Account guide](#using-with-service-account) if you want to go with Service Account.
+
+## Using with 1Password Connect
 
 ### 1. Setup and deploy 1Password Connect
 
-The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see [Prerequisites section](#prerequisites) to do that.
+You should deploy 1Password Connect to your infrastructure in order to retrieve items from 1Password.
 
-### 2. Secure connection to inject secrets
+- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
+- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
+
+### 2. Secure pod connection to inject secrets
+
+[Follow this guide](#secure-pod-connection-to-inject-secrets)
+
+### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
+
+```
+kubectl create secret generic OP_CONNECT_TOKEN_NAME --from-literal=OP_CONNECT_TOKEN_KEY=YOUR_OP_CONNECT_TOKEN -n op-injector
+```
+
+**_ Note: _** Replace OP_CONNECT_TOKEN_NAME, OP_CONNECT_TOKEN_KEY, YOUR_OP_CONNECT_TOKEN with values you'd like to use.
+
+- `OP_CONNECT_TOKEN_NAME` - name of the secret that stores the connect token
+- `OP_CONNECT_TOKEN_KEY` - name of the data field in the secret the stores the connect token
+- `YOUR_OP_CONNECT_TOKEN` - your 1Password Connect token
+
+### 4.Deploy injector
+Copy and run the next scripts from `deploy` folder specifying `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN_NAME` and `OP_CONNECT_TOKEN_KEY` env variables. They should equal to those you set in the [step 3](#3-create-kubernetes-secret-containing-opconnecttoken)
+
+```
+kubectl create -f deploy/deployment.yaml
+kubectl create -f deploy/service.yaml
+kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
+```
+
+## Using with Service Account
+
+**_ Note: _** Service Accounts are currently in Beta and are only available to select users.
+
+### 1. [Secure pod connection to inject secrets](#secure-pod-connection-to-inject-secrets)
+
+### 2. Create kubernetes secret containing `OP_SERVICE_ACCOUNT_TOKEN`
+
+**_ Note: _** Replace OP_SERVICE_ACCOUNT_SECRET_NAME, OP_SERVICE_ACCOUNT_TOKEN_KEY, YOUR_OP_SERVICE_ACCOUNT_TOKEN with values you'd like to use.
+
+- `OP_SERVICE_ACCOUNT_SECRET_NAME` - name of the secret that stores the service account token.
+- `OP_SERVICE_ACCOUNT_TOKEN_KEY` - name of the data field in the secret that stores the service account token
+- `YOUR_OP_SERVICE_ACCOUNT_TOKEN` - your Service Acccount token
+
+```
+kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN -n op-injector
+```
+
+### 3. Deploy injector
+
+Copy and run the next scripts from `deploy` folder specifying `OP_SERVICE_ACCOUNT_SECRET_NAME` and `OP_SERVICE_ACCOUNT_TOKEN_KEY` env variables. They should equal to those you set in the [step 2](#2-create-kubernetes-secret-containing-opserviceaccounttoken)
+
+```
+kubectl create -f deploy/deployment.yaml
+kubectl create -f deploy/service.yaml
+kubectl create -f deploy/mutatingwebhook.yaml
+```
+
+### 5. Inject 1Password Item into your pod
+
+## Secure pod connection to inject secrets
 
 The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
 
@@ -116,25 +179,11 @@ webhooks:
         op-secret-injection: enabled
 ```
 
-### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
-
-```
-kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
-```
-
-### 4.Deploy injector
-
-```
-kubectl create -f deploy/deployment.yaml
-kubectl create -f deploy/service.yaml
-kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
-```
-
 ## Troubleshooting
 
 If you are trouble getting secrets injected in your pod, check the following:
 
 1. Check that that the namespace of your pod has the `op-secret-injection=enabled` label
-2. Check that the `caBundle` in `mutatingwebhook-ca-bundle.yaml` is set with a correct value
+2. Check that the `caBundle` in `mutatingwebhook.yaml` is set with a correct value
 3. Ensure that the 1Password Secret Injector webhook is running (`op-injector` by default).
 4. Check that your container has a `command` field specifying the command to run the app in your container
