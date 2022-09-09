@@ -77,6 +77,8 @@ Service Accounts are currently in Beta and are only available to select users.
 
 Follow the [Using with 1Password Connect guide](#using-1password-connect) if you want to go with 1Password Connect, or [Using with Service Account guide](#using-with-service-account) if you want to go with Service Account.
 
+If you setup injector to use Connect and Service Account together. The Connect will take preference.
+
 ## Using with 1Password Connect
 
 ### 1. Setup and deploy 1Password Connect
@@ -108,7 +110,7 @@ Copy and run the next scripts from `deploy` folder specifying `OP_CONNECT_HOST`,
 ```
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
-kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
+kubectl create -f deploy/mutatingwebhook.yaml
 ```
 
 ## Using with Service Account
