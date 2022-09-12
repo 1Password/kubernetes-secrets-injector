@@ -1,0 +1,8 @@
+# Collapse generated and vendored files on GitHub
+go.sum              linguist-generated merge=ours
+go.mod              linguist-generated
+vendor/*            linguist-vendored
+
+# A set of files we may not want in distribution
+.gitattributes      export-ignore
+.gitignore          export-ignore
