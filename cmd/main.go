@@ -35,7 +35,7 @@ func main() {
 	glog.Info("Starting webhook")
 	// get command line parameters
 	flag.IntVar(&parameters.Port, "port", 8443, "Webhook server port.")
-	flag.StringVar(&webhookServiceName, "service-name", "op-secret-injector-webhook-service", "Webhook service name.")
+	flag.StringVar(&webhookServiceName, "service-name", "op-injector-svc", "Webhook service name.")
 	flag.Parse()
 
 	dnsNames := []string{
