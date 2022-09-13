@@ -67,7 +67,18 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 
 ## Setup and Deployment
 
-The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see our [helm charts documentation](https://github.com/1Password/connect-helm-charts) to do that.
+### Prerequisites:
+
+- [docker installed](https://docs.docker.com/get-docker/)
+- [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
+- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
+
+### 1. Setup and deploy 1Password Connect
+
+The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see [Prerequisites section](#prerequisites) to do that.
+
+### 2. Secure connection to inject secrets
 
 The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
 
@@ -78,40 +89,40 @@ In additon to setting the tlsCert and tlsKey for the Secret Injector service, we
 `export CA_BUNDLE=$(kubectl get configmap -n kube-system extension-apiserver-authentication -o=jsonpath='{.data.client-ca-file}' | base64 | tr -d '\n')`
 
 ```
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: op-secret-injector-webhook-config
+  name: op-injector-webhook-config
   labels:
-    app: op-secret-injector
+    app: op-injector
 webhooks:
-- name: op-secret-injector.1password
-  failurePolicy: Fail
-  clientConfig:
-    service:
-      name: op-secret-injector-webhook-service
-      namespace: op-secret-injector
-      path: "/inject"
-    caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
-  rules:
-  - operations: ["CREATE", "UPDATE"]
-    apiGroups: [""]
-    apiVersions: ["v1"]
-    resources: ["pods"]
-  namespaceSelector:
-    matchLabels:
-      op-secret-injection: enabled
+  - name: operator.1password.io
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: op-injector-svc
+        namespace: op-injector
+        path: "/inject"
+      caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    namespaceSelector:
+      matchLabels:
+        op-secret-injection: enabled
 ```
 
-You can automate this step using the script by [morvencao](https://github.com/morvencao/kube-mutating-webhook-tutorial).
+### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
-cat deploy/mutatingwebhook.yaml | \
-    deploy/webhook-patch-ca-bundle.sh > \
-    deploy/mutatingwebhook-ca-bundle.yaml
+kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
 ```
 
-Lastly, we must apply the deployment, service, and mutating webhook configuration to kubernetes:
+### 4.Deploy injector
 
 ```
 kubectl create -f deploy/deployment.yaml
@@ -124,6 +135,6 @@ kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
 If you are trouble getting secrets injected in your pod, check the following:
 
 1. Check that that the namespace of your pod has the `op-secret-injection=enabled` label
-2. Check that the `caBundle` in `mutatingwebhookconfiguration.yaml` is set with a correct value
-3. Ensure that the 1Password Secret Injector webhook is running (`op-secret-injector` by default).
+2. Check that the `caBundle` in `mutatingwebhook-ca-bundle.yaml` is set with a correct value
+3. Ensure that the 1Password Secret Injector webhook is running (`op-injector` by default).
 4. Check that your container has a `command` field specifying the command to run the app in your container

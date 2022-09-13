@@ -78,3 +78,5 @@ tags
 op-ss-client/
 .idea/
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
+
+mutatingwebhook-ca-bundle.yaml
