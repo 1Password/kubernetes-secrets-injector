@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: op-injector-svc
+  namespace: op-injector
+  labels:
+    app: op-injector
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app: op-injector
