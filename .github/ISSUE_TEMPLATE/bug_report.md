@@ -12,6 +12,9 @@ assignees: ''
 <!-- Version of the Secret Injector when the error occurred -->
 Secret Injector Version:
 
+<!-- What version of 1Password CLI have you used? (default is 2 if not explicitly specified) -->
+1Password CLI Version:
+
 <!-- What version of the Connect server are you running?
 You can get this information from the Integrations section in 1Password
 https://start.1password.com/integrations/active

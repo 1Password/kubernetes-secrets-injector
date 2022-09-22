@@ -10,9 +10,8 @@ import (
 
 	"github.com/1password/kubernetes-secret-injector/version"
 	"github.com/golang/glog"
-
-	"k8s.io/api/admission/v1beta1"
-	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,7 +88,7 @@ type patchOperation struct {
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
-	_ = admissionregistrationv1beta1.AddToScheme(runtimeScheme)
+	_ = admissionregistrationv1.AddToScheme(runtimeScheme)
 	_ = v1.AddToScheme(runtimeScheme)
 }
 
@@ -188,13 +187,13 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 }
 
 // mutation process for injecting secrets into pods
-func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
+func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 	ctx := context.Background()
 	req := ar.Request
 	var pod corev1.Pod
 	if err := json.Unmarshal(req.Object.Raw, &pod); err != nil {
 		glog.Errorf("Could not unmarshal raw object: %v", err)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -207,7 +206,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	// determine whether to inject secrets
 	if !mutationRequired(&pod.ObjectMeta) {
 		glog.Infof("Secret injection not required for %s at namespace %s", pod.Name, pod.Namespace)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
@@ -218,7 +217,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 
 	if containersStr == "" {
 		glog.Infof("No containers set for secret injection for %s/%s", pod.Namespace, pod.Name)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
@@ -241,7 +240,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 		}
 		c, didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -263,7 +262,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 		c, didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			glog.Error("Error occured mutating container for secret injection: ", err)
-			return &v1beta1.AdmissionResponse{
+			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -278,7 +277,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 
 	if !mutated {
 		glog.Infof("No containers set for secret injection for %s/%s", pod.Namespace, pod.Name)
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Allowed: true,
 		}
 	}
@@ -301,7 +300,7 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 
 	patchBytes, err := createOPCLIPatch(&pod, []corev1.Container{binInitContainer}, patch)
 	if err != nil {
-		return &v1beta1.AdmissionResponse{
+		return &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -309,11 +308,11 @@ func (s *SecretInjector) mutate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionR
 	}
 
 	glog.Infof("AdmissionResponse: patch=%v\n", string(patchBytes))
-	return &v1beta1.AdmissionResponse{
+	return &admissionv1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
-		PatchType: func() *v1beta1.PatchType {
-			pt := v1beta1.PatchTypeJSONPatch
+		PatchType: func() *admissionv1.PatchType {
+			pt := admissionv1.PatchTypeJSONPatch
 			return &pt
 		}(),
 	}
@@ -500,11 +499,11 @@ func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var admissionResponse *v1beta1.AdmissionResponse
-	ar := v1beta1.AdmissionReview{}
+	var admissionResponse *admissionv1.AdmissionResponse
+	ar := admissionv1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		glog.Errorf("Can't decode body: %v", err)
-		admissionResponse = &v1beta1.AdmissionResponse{
+		admissionResponse = &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -513,7 +512,12 @@ func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 		admissionResponse = s.mutate(&ar)
 	}
 
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admission.k8s.io/v1",
+			Kind:       "AdmissionReview",
+		},
+	}
 	if admissionResponse != nil {
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {

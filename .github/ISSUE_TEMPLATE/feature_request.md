@@ -13,12 +13,15 @@ assignees: ''
 ### Use cases
 <!-- Describe the use cases that make this feature useful to others.
 The description should help the reader understand why the feature is necessary.
-The better we understand your use case, the better we can help create an appropriate solution. -->
+The better we understand your use case, the better we can help create an appropriate solution.
+Please try to answer the next questions:
+- How will you use the feature?
+- What value will the feature provide you? -->
 
 ### Proposed solution
 <!-- If you already have an idea for how the feature should work, use this space to describe it.
 We'll work with you to find a workable approach, and any implementation details are appreciated.
--->
+A proposed solution is optional. We also welcome feature requests that don't have a solution yet. -->
 
 ### Is there a workaround to accomplish this today?
 <!-- If there's a way to accomplish this feature request without changes to the codebase, we'd like to hear it.
