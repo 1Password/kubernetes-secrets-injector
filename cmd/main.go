@@ -50,6 +50,7 @@ func main() {
 	caPEM, certPEM, certKeyPEM, err := generateCert([]string{org}, dnsNames, commonName)
 	if err != nil {
 		glog.Errorf("Failed to generate ca and certificate key pair: %v", err)
+		os.Exit(1)
 	}
 
 	pair, err := tls.X509KeyPair(certPEM.Bytes(), certKeyPEM.Bytes())
@@ -83,6 +84,7 @@ func main() {
 	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
 		glog.Errorf("Failed to create or update the mutating webhook configuration: %v", err)
+		os.Exit(1)
 	}
 
 	secretInjector := &webhook.SecretInjector{
