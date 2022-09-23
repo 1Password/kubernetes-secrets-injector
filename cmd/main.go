@@ -20,17 +20,40 @@ const (
 	connectHostEnv            = "OP_CONNECT_HOST"
 )
 
+var (
+	webhookNamespace, webhookServiceName string
+)
+
+func init() {
+	// webhook server running namespace
+	webhookNamespace = os.Getenv("POD_NAMESPACE")
+}
+
 func main() {
 	var parameters webhook.SecretInjectorParameters
 
 	glog.Info("Starting webhook")
 	// get command line parameters
 	flag.IntVar(&parameters.Port, "port", 8443, "Webhook server port.")
-	flag.StringVar(&parameters.CertFile, "tlsCertFile", "/etc/webhook/certs/cert.pem", "File containing the x509 Certificate for HTTPS.")
-	flag.StringVar(&parameters.KeyFile, "tlsKeyFile", "/etc/webhook/certs/key.pem", "File containing the x509 private key to --tlsCertFile.")
+	flag.StringVar(&webhookServiceName, "service-name", "op-injector-svc", "Webhook service name.")
 	flag.Parse()
 
-	pair, err := tls.LoadX509KeyPair(parameters.CertFile, parameters.KeyFile)
+	dnsNames := []string{
+		webhookServiceName,
+		webhookServiceName + "." + webhookNamespace,
+		webhookServiceName + "." + webhookNamespace + ".svc",
+	}
+	commonName := webhookServiceName + "." + webhookNamespace + ".svc"
+
+	org := "1password.com"
+
+	caPEM, certPEM, certKeyPEM, err := generateCert([]string{org}, dnsNames, commonName)
+	if err != nil {
+		glog.Errorf("Failed to generate ca and certificate key pair: %v", err)
+		os.Exit(1)
+	}
+
+	pair, err := tls.X509KeyPair(certPEM.Bytes(), certKeyPEM.Bytes())
 	if err != nil {
 		glog.Errorf("Failed to load key pair: %v", err)
 		os.Exit(1)
@@ -56,6 +79,14 @@ func main() {
 		ConnectTokenName: connectTokenName,
 		ConnectTokenKey:  connectTokenKey,
 	}
+
+	// create or update the mutatingwebhookconfiguration
+	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
+	if err != nil {
+		glog.Errorf("Failed to create or update the mutating webhook configuration: %v", err)
+		os.Exit(1)
+	}
+
 	secretInjector := &webhook.SecretInjector{
 		Config: webhookConfig,
 		Server: &http.Server{
