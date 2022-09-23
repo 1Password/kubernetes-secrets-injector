@@ -36,6 +36,10 @@ spec:
             value: onepassword-token
           - name: OP_CONNECT_TOKEN_KEY
             value: token
+          - name: OP_SERVICE_ACCOUNT_SECRET_NAME
+            value: service-account
+          - name: OP_SERVICE_ACCOUNT_TOKEN_KEY
+            value: token
           lifecycle:
             preStop:
               exec:

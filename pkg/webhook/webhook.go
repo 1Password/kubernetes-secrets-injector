@@ -11,8 +11,6 @@ import (
 	"github.com/1password/kubernetes-secret-injector/version"
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,9 +23,6 @@ const (
 
 	// binVolumeMountPath is the mount path where the OP CLI binary can be found.
 	binVolumeMountPath = "/op/bin/"
-
-	connectTokenEnv = "OP_CONNECT_TOKEN"
-	connectHostEnv  = "OP_CONNECT_HOST"
 )
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
@@ -51,9 +46,6 @@ var (
 	runtimeScheme = runtime.NewScheme()
 	codecs        = serializer.NewCodecFactory(runtimeScheme)
 	deserializer  = codecs.UniversalDeserializer()
-
-	// (https://github.com/kubernetes/kubernetes/issues/57982)
-	defaulter = runtime.ObjectDefaulter(runtimeScheme)
 )
 
 const (
@@ -74,31 +66,10 @@ type SecretInjectorParameters struct {
 	KeyFile  string // path to the x509 private key matching `CertFile`
 }
 
-type Config struct {
-	ConnectHost      string // the host in which a connect server is running
-	ConnectTokenName string // the token name of the secret that stores the connect token
-	ConnectTokenKey  string // the name of the data field in the secret the stores the connect token
-}
-
 type patchOperation struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value,omitempty"`
-}
-
-func init() {
-	_ = corev1.AddToScheme(runtimeScheme)
-	_ = admissionregistrationv1.AddToScheme(runtimeScheme)
-	_ = v1.AddToScheme(runtimeScheme)
-}
-
-func applyDefaultsWorkaround(containers []corev1.Container, volumes []corev1.Volume) {
-	defaulter.Default(&corev1.Pod{
-		Spec: corev1.PodSpec{
-			Containers: containers,
-			Volumes:    volumes,
-		},
-	})
 }
 
 // Check if the pod should have secrets injected
@@ -329,34 +300,56 @@ func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []pa
 	return json.Marshal(patch)
 }
 
-func createOPConnectPatch(container *corev1.Container, containerIndex int, host, tokenSecretName, tokenSecretKey string) []patchOperation {
+func createOPConnectPatch(container *corev1.Container, containerIndex int, config *Config) []patchOperation {
 	var patch []patchOperation
 	envs := []corev1.EnvVar{}
 
-	// if connect configuration is already set in the container do not overwrite it
-	hostConfig, tokenConfig := isConnectConfigurationSet(container)
+	if config.Connect != nil {
+		// if Connect configuration is already set in the container do not overwrite it
+		hostConfig, tokenConfig := isConnectConfigurationSet(container)
 
-	if !hostConfig {
-		connectHostEnvVar := corev1.EnvVar{
-			Name:  "OP_CONNECT_HOST",
-			Value: host,
+		if !hostConfig {
+			connectHostEnvVar := corev1.EnvVar{
+				Name:  "OP_CONNECT_HOST",
+				Value: config.Connect.Host,
+			}
+			envs = append(envs, connectHostEnvVar)
 		}
-		envs = append(envs, connectHostEnvVar)
-	}
 
-	if !tokenConfig {
-		connectTokenEnvVar := corev1.EnvVar{
-			Name: "OP_CONNECT_TOKEN",
-			ValueFrom: &corev1.EnvVarSource{
-				SecretKeyRef: &corev1.SecretKeySelector{
-					Key: tokenSecretKey,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: tokenSecretName,
+		if !tokenConfig {
+			connectTokenEnvVar := corev1.EnvVar{
+				Name: "OP_CONNECT_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: config.Connect.TokenKey,
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: config.Connect.SecretName,
+						},
 					},
 				},
-			},
+			}
+			envs = append(envs, connectTokenEnvVar)
 		}
-		envs = append(envs, connectTokenEnvVar)
+	}
+
+	if config.ServiceAccount != nil {
+		// if Service Account configuration is already set in the container do not overwrite it
+		serviceAccountConfig := isServiceAccountConfigurationSet(container)
+
+		if !serviceAccountConfig {
+			serviceAccountTokenEnvVar := corev1.EnvVar{
+				Name: "OP_SERVICE_ACCOUNT_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: config.ServiceAccount.TokenKey,
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: config.ServiceAccount.SecretName,
+						},
+					},
+				},
+			}
+			envs = append(envs, serviceAccountTokenEnvVar)
+		}
 	}
 
 	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)
@@ -383,6 +376,21 @@ func isConnectConfigurationSet(container *corev1.Container) (bool, bool) {
 		}
 	}
 	return hostConfig, tokenConfig
+}
+
+func isServiceAccountConfigurationSet(container *corev1.Container) bool {
+	serviceAccountConfig := false
+
+	for _, env := range container.Env {
+		if env.Name == connectHostEnv {
+			serviceAccountConfig = true
+		}
+
+		if serviceAccountConfig {
+			break
+		}
+	}
+	return serviceAccountConfig
 }
 
 func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
@@ -449,7 +457,7 @@ func (s *SecretInjector) mutateContainer(_ context.Context, container *corev1.Co
 	})
 
 	//creating patch for adding connect environment variables to container. If they are already set in the container then this will be skipped
-	patch = append(patch, createOPConnectPatch(container, containerIndex, s.Config.ConnectHost, s.Config.ConnectTokenName, s.Config.ConnectTokenKey)...)
+	patch = append(patch, createOPConnectPatch(container, containerIndex, &s.Config)...)
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)

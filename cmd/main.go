@@ -14,12 +14,6 @@ import (
 	"github.com/golang/glog"
 )
 
-const (
-	connectTokenSecretKeyEnv  = "OP_CONNECT_TOKEN_KEY"
-	connectTokenSecretNameEnv = "OP_CONNECT_TOKEN_NAME"
-	connectHostEnv            = "OP_CONNECT_HOST"
-)
-
 var (
 	webhookNamespace, webhookServiceName string
 )
@@ -59,27 +53,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	connectHost, present := os.LookupEnv(connectHostEnv)
-	if !present || connectHost == "" {
-		glog.Error("Connect host not set")
-	}
-
-	connectTokenName, present := os.LookupEnv(connectTokenSecretNameEnv)
-	if !present || connectTokenName == "" {
-		glog.Error("Connect token name not set")
-	}
-
-	connectTokenKey, present := os.LookupEnv(connectTokenSecretKeyEnv)
-	if !present || connectTokenKey == "" {
-		glog.Error("Connect token key not set")
-	}
-
-	webhookConfig := webhook.Config{
-		ConnectHost:      connectHost,
-		ConnectTokenName: connectTokenName,
-		ConnectTokenKey:  connectTokenKey,
-	}
-
 	// create or update the mutatingwebhookconfiguration
 	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
@@ -88,7 +61,7 @@ func main() {
 	}
 
 	secretInjector := &webhook.SecretInjector{
-		Config: webhookConfig,
+		Config: webhook.CreateWebhookConfig(),
 		Server: &http.Server{
 			Addr:      fmt.Sprintf(":%v", parameters.Port),
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
