@@ -88,12 +88,6 @@ You should deploy 1Password Connect to your infrastructure in order to retrieve 
 - [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
 - [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
 
-### 2. Secure pod connection to inject secrets
-
-[Follow this guide](#secure-pod-connection-to-inject-secrets)
-
-### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
-
 ### 2. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
@@ -114,9 +108,7 @@ kubectl create -f deploy/service.yaml
 
 **_ Note: _** Service Accounts are currently in Beta and are only available to select users.
 
-### 1. [Secure pod connection to inject secrets](#secure-pod-connection-to-inject-secrets)
-
-### 2. Create kubernetes secret containing `OP_SERVICE_ACCOUNT_TOKEN`
+### 1. Create kubernetes secret containing `OP_SERVICE_ACCOUNT_TOKEN`
 
 **_ Note: _** Replace OP_SERVICE_ACCOUNT_SECRET_NAME, OP_SERVICE_ACCOUNT_TOKEN_KEY, YOUR_OP_SERVICE_ACCOUNT_TOKEN with values you'd like to use.
 
@@ -128,7 +120,7 @@ kubectl create -f deploy/service.yaml
 kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN -n op-injector
 ```
 
-### 3.Deploy injector
+### 2.Deploy injector
 
 ```
 kubectl create -f deploy/permissions.yaml
