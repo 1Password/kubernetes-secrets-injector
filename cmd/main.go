@@ -53,27 +53,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	connectHost, present := os.LookupEnv(connectHostEnv)
-	if !present || connectHost == "" {
-		glog.Error("Connect host not set")
-	}
-
-	connectTokenName, present := os.LookupEnv(connectTokenSecretNameEnv)
-	if !present || connectTokenName == "" {
-		glog.Error("Connect token name not set")
-	}
-
-	connectTokenKey, present := os.LookupEnv(connectTokenSecretKeyEnv)
-	if !present || connectTokenKey == "" {
-		glog.Error("Connect token key not set")
-	}
-
-	webhookConfig := webhook.Config{
-		ConnectHost:      connectHost,
-		ConnectTokenName: connectTokenName,
-		ConnectTokenKey:  connectTokenKey,
-	}
-
 	// create or update the mutatingwebhookconfiguration
 	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
