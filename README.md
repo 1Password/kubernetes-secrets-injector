@@ -94,24 +94,21 @@ You should deploy 1Password Connect to your infrastructure in order to retrieve 
 
 ### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
-```
-kubectl create secret generic OP_CONNECT_TOKEN_NAME --from-literal=OP_CONNECT_TOKEN_KEY=YOUR_OP_CONNECT_TOKEN -n op-injector
-```
-
-**_ Note: _** Replace OP_CONNECT_TOKEN_NAME, OP_CONNECT_TOKEN_KEY, YOUR_OP_CONNECT_TOKEN with values you'd like to use.
-
-- `OP_CONNECT_TOKEN_NAME` - name of the secret that stores the connect token
-- `OP_CONNECT_TOKEN_KEY` - name of the data field in the secret the stores the connect token
-- `YOUR_OP_CONNECT_TOKEN` - your 1Password Connect token
-
-### 4.Deploy injector
-Copy and run the next scripts from `deploy` folder specifying `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN_NAME` and `OP_CONNECT_TOKEN_KEY` env variables. They should equal to those you set in the [step 3](#3-create-kubernetes-secret-containing-opconnecttoken)
+### 2. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
+kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
+```
+
+### 3.Deploy injector
+
+```
+kubectl create -f deploy/permissions.yaml
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
-kubectl create -f deploy/mutatingwebhook.yaml
 ```
+
+**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
 ## Using with Service Account
 
@@ -131,55 +128,15 @@ kubectl create -f deploy/mutatingwebhook.yaml
 kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN -n op-injector
 ```
 
-### 3. Deploy injector
-
-Copy and run the next scripts from `deploy` folder specifying `OP_SERVICE_ACCOUNT_SECRET_NAME` and `OP_SERVICE_ACCOUNT_TOKEN_KEY` env variables. They should equal to those you set in the [step 2](#2-create-kubernetes-secret-containing-opserviceaccounttoken)
+### 3.Deploy injector
 
 ```
+kubectl create -f deploy/permissions.yaml
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
-kubectl create -f deploy/mutatingwebhook.yaml
 ```
 
-### 5. Inject 1Password Item into your pod
-
-## Secure pod connection to inject secrets
-
-The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
-
-For managing TLS certifcates for your cluster please see the [official documentation](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/). The certificate and key generated in the offical documentation must be set in the [deployment](deploy/deployment.yaml) arguments (`tlsCertFile` and `tlsKeyFile` respectively) for the Secret injector.
-
-In additon to setting the tlsCert and tlsKey for the Secret Injector service, we must also create a webhook configuration for the service. An example of the confiugration can be found [here](deploy/mutatingwebhook.yaml). In the provided example you may notice that the caBundle is not set. Please replace this value with your caBundle. This can be generated with the Kubernetes apiserver's default caBundle with the following command
-
-`export CA_BUNDLE=$(kubectl get configmap -n kube-system extension-apiserver-authentication -o=jsonpath='{.data.client-ca-file}' | base64 | tr -d '\n')`
-
-```
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  name: op-injector-webhook-config
-  labels:
-    app: op-injector
-webhooks:
-  - name: operator.1password.io
-    failurePolicy: Fail
-    clientConfig:
-      service:
-        name: op-injector-svc
-        namespace: op-injector
-        path: "/inject"
-      caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
-    admissionReviewVersions: ["v1", "v1beta1"]
-    sideEffects: None
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: [""]
-        apiVersions: ["v1"]
-        resources: ["pods"]
-    namespaceSelector:
-      matchLabels:
-        op-secret-injection: enabled
-```
+**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
 ## Troubleshooting
 
