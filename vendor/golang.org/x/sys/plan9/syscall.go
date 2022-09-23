@@ -29,6 +29,8 @@ import (
 	"bytes"
 	"strings"
 	"unsafe"
+
+	"golang.org/x/sys/internal/unsafeheader"
 )
 
 // ByteSliceFromString returns a NUL-terminated slice of bytes
@@ -80,7 +82,12 @@ func BytePtrToString(p *byte) string {
 		ptr = unsafe.Pointer(uintptr(ptr) + 1)
 	}
 
-	s := unsafe.Slice((*byte)(unsafe.Pointer(p)), n)
+	var s []byte
+	h := (*unsafeheader.Slice)(unsafe.Pointer(&s))
+	h.Data = unsafe.Pointer(p)
+	h.Len = n
+	h.Cap = n
+
 	return string(s)
 }
 
