@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/1password/kubernetes-secret-injector/version"
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -384,6 +385,41 @@ func isConnectConfigurationSet(container *corev1.Container) (bool, bool) {
 	return hostConfig, tokenConfig
 }
 
+func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
+	userAgentEnvs := []corev1.EnvVar{
+		{
+			Name:  "OP_INTEGRATION_NAME",
+			Value: "1Password Kubernetes Webhook",
+		},
+		{
+			Name:  "OP_INTEGRATION_ID",
+			Value: "K8W",
+		},
+		{
+			Name:  "OP_INTEGRATION_BUILDNUMBER",
+			Value: makeBuildVersion(version.Version),
+		},
+	}
+
+	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
+}
+
+func makeBuildVersion(version string) string {
+	parts := strings.Split(strings.ReplaceAll(version, "-beta", ""), ".")
+	buildVersion := parts[0]
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) == 1 {
+			buildVersion += "0" + parts[i]
+		} else {
+			buildVersion += parts[i]
+		}
+	}
+	if len(parts) != 3 {
+		return buildVersion
+	}
+	return buildVersion + "01"
+}
+
 // mutates the container to allow for secrets to be injected into the container via the op cli
 func (s *SecretInjector) mutateContainer(_ context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
@@ -414,6 +450,9 @@ func (s *SecretInjector) mutateContainer(_ context.Context, container *corev1.Co
 
 	//creating patch for adding connect environment variables to container. If they are already set in the container then this will be skipped
 	patch = append(patch, createOPConnectPatch(container, containerIndex, s.Config.ConnectHost, s.Config.ConnectTokenName, s.Config.ConnectTokenKey)...)
+
+	//creating patch for passing User-Agent information to the CLI.
+	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
 	return container, true, patch, nil
 }
 
