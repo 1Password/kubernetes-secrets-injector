@@ -71,64 +71,28 @@ The 1Password Secrets Injector for Kubernetes can be used in conjuction with the
 
 - [docker installed](https://docs.docker.com/get-docker/)
 - [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
-- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
+- [1Password Connect server configured](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
+- [1Password Connect deployed to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
 
 ### 1. Setup and deploy 1Password Connect
 
 The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items. You should deploy 1Password Connect to your infrastructure. Please see [Prerequisites section](#prerequisites) to do that.
 
-### 2. Secure connection to inject secrets
-
-The 1Password Secrets Injector for Kubernetes uses a webhook server in order to inject secrets into pods and deployments. Admission to the webhook server must be a secure operation, thus communication with the webhook server requires a TLS certificate signed by a Kubernetes CA.
-
-For managing TLS certifcates for your cluster please see the [official documentation](https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/). The certificate and key generated in the offical documentation must be set in the [deployment](deploy/deployment.yaml) arguments (`tlsCertFile` and `tlsKeyFile` respectively) for the Secret injector.
-
-In additon to setting the tlsCert and tlsKey for the Secret Injector service, we must also create a webhook configuration for the service. An example of the confiugration can be found [here](deploy/mutatingwebhook.yaml). In the provided example you may notice that the caBundle is not set. Please replace this value with your caBundle. This can be generated with the Kubernetes apiserver's default caBundle with the following command
-
-`export CA_BUNDLE=$(kubectl get configmap -n kube-system extension-apiserver-authentication -o=jsonpath='{.data.client-ca-file}' | base64 | tr -d '\n')`
-
-```
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  name: op-injector-webhook-config
-  labels:
-    app: op-injector
-webhooks:
-  - name: operator.1password.io
-    failurePolicy: Fail
-    clientConfig:
-      service:
-        name: op-injector-svc
-        namespace: op-injector
-        path: "/inject"
-      caBundle: ${CA_BUNDLE} //replace this with your own CA Bundle
-    admissionReviewVersions: ["v1", "v1beta1"]
-    sideEffects: None
-    rules:
-      - operations: ["CREATE", "UPDATE"]
-        apiGroups: [""]
-        apiVersions: ["v1"]
-        resources: ["pods"]
-    namespaceSelector:
-      matchLabels:
-        op-secret-injection: enabled
-```
-
-### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
+### 2. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
 kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
 ```
 
-### 4.Deploy injector
+### 3.Deploy injector
 
 ```
+kubectl create -f deploy/permissions.yaml
 kubectl create -f deploy/deployment.yaml
 kubectl create -f deploy/service.yaml
-kubectl create -f deploy/mutatingwebhook-ca-bundle.yaml
 ```
+
+**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
 ## Troubleshooting
 
