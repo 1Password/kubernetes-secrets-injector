@@ -23,11 +23,12 @@ jobs:
         with:
           images: |
             1password/kubernetes-secret-injector
-          # Publish image for x.y.z and x.y
+          # Publish image for x.y.z, x.y and x
           # The latest tag is automatically added for semver tags
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
       - name: Get the version from tag
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
