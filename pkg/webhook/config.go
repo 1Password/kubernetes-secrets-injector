@@ -40,6 +40,8 @@ func CreateWebhookConfig() Config {
 		os.Exit(1)
 	}
 
+	// TODO: if config is set validate secret
+
 	return Config{
 		ServiceAccount: serviceAccountConfig,
 		Connect:        connectConfig,
@@ -68,7 +70,7 @@ func createServiceAccountConfig(secretName string, dataKey string) *ServiceAccou
 }
 
 func createConnectConfig(host string, secretName string, dataKey string) *ConnectConfig {
-	connectHost, present := os.LookupEnv(connectHostEnv)
+	connectHost, present := os.LookupEnv(host)
 	if !present || connectHost == "" {
 		glog.Error("Connect host not set")
 		return nil

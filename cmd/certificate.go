@@ -29,7 +29,7 @@ import (
 
 // generateCert generate a self-signed CA for given organization
 // and sign certificate with the CA for given common name and dns names
-// it resurns the CA, certificate and private key in PEM format
+// it returns the CA, certificate and private key in PEM format
 func generateCert(orgs, dnsNames []string, commonName string) (*bytes.Buffer, *bytes.Buffer, *bytes.Buffer, error) {
 	// init CA config
 	ca := &x509.Certificate{

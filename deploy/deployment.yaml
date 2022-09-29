@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: op-injector-pod
-  namespace: op-injector
   labels:
     app: op-injector
 spec:
