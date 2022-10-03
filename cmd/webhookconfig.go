@@ -19,14 +19,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/1password/kubernetes-secret-injector/pkg/webhook"
 	"github.com/golang/glog"
-	"k8s.io/client-go/rest"
 	"reflect"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -35,19 +34,6 @@ var (
 )
 
 func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookService, webhookNamespace string) error {
-	glog.Infof("Initializing the kube client...")
-
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	mutatingWebhookConfigV1Client := clientset.AdmissionregistrationV1()
-
 	glog.Infof("Creating or updating the mutatingwebhookconfiguration: %s", webhookConfigName)
 	fail := admissionregistrationv1.Fail
 	sideEffect := admissionregistrationv1.SideEffectClassNone
@@ -89,9 +75,9 @@ func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 		}},
 	}
 
-	foundWebhookConfig, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
+	foundWebhookConfig, err := webhook.MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		if _, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Create(context.TODO(), mutatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+		if _, err := webhook.MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Create(context.TODO(), mutatingWebhookConfig, metav1.CreateOptions{}); err != nil {
 			glog.Warningf("Failed to create the mutatingwebhookconfiguration: %s", webhookConfigName)
 			return err
 		}
@@ -103,7 +89,7 @@ func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 		// there is an existing mutatingWebhookConfiguration
 		if reflect.DeepEqual(foundWebhookConfig, mutatingWebhookConfig) {
 			mutatingWebhookConfig.ObjectMeta.ResourceVersion = foundWebhookConfig.ObjectMeta.ResourceVersion
-			if _, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Update(context.TODO(), mutatingWebhookConfig, metav1.UpdateOptions{}); err != nil {
+			if _, err := webhook.MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Update(context.TODO(), mutatingWebhookConfig, metav1.UpdateOptions{}); err != nil {
 				glog.Warningf("Failed to update the mutatingwebhookconfiguration: %s", webhookConfigName)
 				return err
 			}
