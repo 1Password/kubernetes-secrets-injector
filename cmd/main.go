@@ -61,7 +61,6 @@ func main() {
 	}
 
 	secretInjector := &webhook.SecretInjector{
-		Config: webhook.CreateWebhookConfig(),
 		Server: &http.Server{
 			Addr:      fmt.Sprintf(":%v", parameters.Port),
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
@@ -73,7 +72,7 @@ func main() {
 	mux.HandleFunc("/inject", secretInjector.Serve)
 	secretInjector.Server.Handler = mux
 
-	// start webhook server in new rountine
+	// start webhook server in new routine
 	go func() {
 		if err := secretInjector.Server.ListenAndServeTLS("", ""); err != nil {
 			glog.Errorf("Failed to listen and serve webhook server: %v", err)
