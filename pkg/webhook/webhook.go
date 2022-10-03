@@ -1,11 +1,11 @@
 package webhook
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/1password/kubernetes-secret-injector/version"
@@ -19,7 +19,7 @@ import (
 
 const (
 	connectTokenSecretKeyEnv  = "OP_CONNECT_TOKEN_KEY"
-	connectTokenSecretNameEnv = "OP_CONNECT_TOKEN_NAME"
+	connectTokenSecretNameEnv = "OP_CONNECT_TOKEN_SECRET_NAME"
 	connectHostEnv            = "OP_CONNECT_HOST"
 	connectTokenEnv           = "OP_CONNECT_TOKEN"
 
@@ -307,54 +307,68 @@ func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []pa
 	return json.Marshal(patch)
 }
 
-func createConnectEnvVars(container *corev1.Container) (*corev1.EnvVar, *corev1.EnvVar) {
-	connectHostEnvVar, connectTokenEnvVar := connectEnvVarsFromContainer(container)
-
+func setupConnectHostEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
+	connectHostEnvVar := findContainerEnvVarByName(connectHostEnv, container)
 	// if Connect host is already set in the container do not overwrite it
 	if connectHostEnvVar == nil {
-		connectHost, present := os.LookupEnv(connectHostEnv)
-		if present && connectHost != "" {
-			connectHostEnvVar = createEnvVar(connectHostEnv, connectHost)
-		}
+		glog.Infof("%s not provided, setting default", connectHostEnv)
+		connectHostEnvVar = createEnvVar(connectHostEnv, "http://onepassword-connect:8080")
+		*envs = append(*envs, *connectHostEnvVar)
 	}
-
-	// if Connect token is already set in the container do not overwrite it
-	if connectTokenEnvVar == nil {
-		connectTokenSecretName, present := os.LookupEnv(connectTokenSecretNameEnv)
-		if !present && connectTokenSecretName == "" {
-			connectTokenSecretName = "onepassword-token"
-		}
-
-		connectTokenSecretKey, present := os.LookupEnv(connectTokenSecretKeyEnv)
-		if !present && connectTokenSecretKey == "" {
-			connectTokenSecretKey = "token"
-		}
-
-		connectTokenEnvVar = createEnvVarFromSecret(connectTokenEnv, connectTokenSecretName, connectTokenSecretKey)
-	}
-
-	return connectHostEnvVar, connectTokenEnvVar
 }
 
-func createServiceAccountEnvVar(container *corev1.Container) *corev1.EnvVar {
-	serviceAccountEnvVar := serviceAccountEnvVarFromContainer(container)
+func setupConnectTokenEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
+	connectTokenEnvVar := findContainerEnvVarByName(connectTokenEnv, container)
+	// if Connect token is already set in the container do not overwrite it
+	if connectTokenEnvVar == nil {
+		secretName := "onepassword-token"
+		secretKey := "token"
+		// TODO: provide context and dynamic namespace
+		connectTokenSecret, err := CoreV1Client.Secrets("default").Get(context.TODO(), secretName, metav1.GetOptions{})
+		if connectTokenSecret != nil && err == nil {
+			overrideByEnvVar(&secretName, connectTokenSecretNameEnv, container)
+			overrideByEnvVar(&secretKey, connectTokenSecretKeyEnv, container)
+			connectTokenEnvVar = createEnvVarFromSecret(connectTokenEnv, secretName, secretKey)
+			*envs = append(*envs, *connectTokenEnvVar)
+		}
+	}
+}
 
+func overrideByEnvVar(defaultValue *string, envVarName string, container *corev1.Container) {
+	providedEnvVar := findContainerEnvVarByName(envVarName, container)
+	if providedEnvVar != nil && providedEnvVar.Value != "" {
+		defaultValue = &providedEnvVar.Value
+	}
+}
+
+func setupServiceAccountEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
+	serviceAccountEnvVar := findContainerEnvVarByName(serviceAccountTokenEnv, container)
 	// if Service Account token is already set in the container do not overwrite it
 	if serviceAccountEnvVar == nil {
-		serviceAccountSecretName, present := os.LookupEnv(serviceAccountSecretNameEnv)
-		if !present && serviceAccountSecretName == "" {
-			serviceAccountSecretName = "service-account"
+		secretName := "service-account"
+		secretKey := "token"
+		// TODO: provide context and dynamic namespace
+		serviceAccountTokenSecret, err := CoreV1Client.Secrets("default").Get(context.TODO(), secretName, metav1.GetOptions{})
+		if serviceAccountTokenSecret != nil && err == nil {
+			overrideByEnvVar(&secretName, serviceAccountSecretNameEnv, container)
+			overrideByEnvVar(&secretName, serviceAccountSecretKeyEnv, container)
+			serviceAccountEnvVar = createEnvVarFromSecret(serviceAccountTokenEnv, secretName, secretKey)
+			*envs = append(*envs, *serviceAccountEnvVar)
 		}
+	}
+}
 
-		serviceAccountTokenSecretKey, present := os.LookupEnv(serviceAccountSecretKeyEnv)
-		if !present && serviceAccountTokenSecretKey == "" {
-			serviceAccountTokenSecretKey = "token"
+func findContainerEnvVarByName(envName string, container *corev1.Container) *corev1.EnvVar {
+	var envVar *corev1.EnvVar
+
+	for _, containerEnvVar := range container.Env {
+		if containerEnvVar.Name == envName {
+			envVar = &containerEnvVar
+			break
 		}
-
-		serviceAccountEnvVar = createEnvVarFromSecret(serviceAccountTokenEnv, serviceAccountSecretName, serviceAccountTokenSecretKey)
 	}
 
-	return serviceAccountEnvVar
+	return envVar
 }
 
 func createEnvVar(name, value string) *corev1.EnvVar {
@@ -378,80 +392,19 @@ func createEnvVarFromSecret(envVarName, secretName, tokenKey string) *corev1.Env
 	}
 }
 
-func canSignInOpCLI(connectHost, connectToken, serviceAccount *corev1.EnvVar) bool {
-	isConnectCredentials := connectHost != nil && connectToken != nil
-	isServiceAccountCredentials := serviceAccount != nil
-
-	if isConnectCredentials {
-		glog.Info("Connect credentials set")
-	}
-
-	if isServiceAccountCredentials {
-		glog.Info("Service Accounts credentials set")
-	}
-
-	return isConnectCredentials || isServiceAccountCredentials
-}
-
 func createOPCLIEnvVarsPatch(container *corev1.Container, containerIndex int) []patchOperation {
 	var patch []patchOperation
 	var envs []corev1.EnvVar
 
-	connectHostEnvVar, connectTokenEnvVar := createConnectEnvVars(container)
-	if connectHostEnvVar != nil && connectTokenEnvVar != nil {
-		envs = append(envs, *connectHostEnvVar, *connectTokenEnvVar)
+	setupConnectTokenEnvVar(container, &envs)
+	if len(envs) == 1 { // create Connect host env var only when there is Connect Token
+		setupConnectHostEnvVar(container, &envs) // creates with default value if not provided
 	}
-
-	serviceAccountTokenEnvVar := createServiceAccountEnvVar(container)
-	if serviceAccountTokenEnvVar != nil {
-		envs = append(envs, *serviceAccountTokenEnvVar)
-	}
-
-	if !canSignInOpCLI(connectHostEnvVar, connectTokenEnvVar, serviceAccountTokenEnvVar) {
-		glog.Info("No credentials provided to login op cli")
-		return patch
-	}
+	setupServiceAccountEnvVar(container, &envs)
 
 	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)
 
 	return patch
-}
-
-func connectEnvVarsFromContainer(container *corev1.Container) (*corev1.EnvVar, *corev1.EnvVar) {
-	var host *corev1.EnvVar
-	var token *corev1.EnvVar
-
-	for _, env := range container.Env {
-		if env.Name == connectHostEnv {
-			host = &env
-		}
-
-		if env.Name == connectTokenEnv {
-			token = &env
-		}
-
-		if host != nil && token != nil {
-			break
-		}
-	}
-
-	return host, token
-}
-
-func serviceAccountEnvVarFromContainer(container *corev1.Container) *corev1.EnvVar {
-	var serviceAccount *corev1.EnvVar
-
-	for _, env := range container.Env {
-		if env.Name == serviceAccountTokenEnv {
-			serviceAccount = &env
-		}
-
-		if serviceAccount != nil {
-			break
-		}
-	}
-
-	return serviceAccount
 }
 
 func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
