@@ -1,4 +1,4 @@
-module github.com/1password/kubernetes-secret-injector
+module github.com/1password/kubernetes-secrets-injector
 
 go 1.18
 

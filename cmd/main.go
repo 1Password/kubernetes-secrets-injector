@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/1password/kubernetes-secret-injector/pkg/webhook"
+	"github.com/1password/kubernetes-secrets-injector/pkg/webhook"
 	"github.com/golang/glog"
 )
 
@@ -29,7 +29,7 @@ func main() {
 	glog.Info("Starting webhook")
 	// get command line parameters
 	flag.IntVar(&parameters.Port, "port", 8443, "Webhook server port.")
-	flag.StringVar(&webhookServiceName, "service-name", "secret-injector-svc", "Webhook service name.")
+	flag.StringVar(&webhookServiceName, "service-name", "secrets-injector-svc", "Webhook service name.")
 	flag.Parse()
 
 	dnsNames := []string{

@@ -40,8 +40,6 @@ func CreateWebhookConfig() Config {
 		os.Exit(1)
 	}
 
-	// TODO: if config is set validate secret
-
 	return Config{
 		ServiceAccount: serviceAccountConfig,
 		Connect:        connectConfig,

@@ -31,7 +31,7 @@ TOKEN=$(cat ${SERVICEACCOUNT}/token)
 # Reference the internal certificate authority (CA)
 CACERT=${SERVICEACCOUNT}/ca.crt
 
-MutatingWebhookConfigurationName=secret-injector-webhook-config
+MutatingWebhookConfigurationName=secrets-injector-webhook-config
 
 # Delete the validatingwebhookconfiguration with TOKEN
 curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X DELETE ${APISERVER}/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/${MutatingWebhookConfigurationName}

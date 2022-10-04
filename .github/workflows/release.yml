@@ -22,7 +22,7 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v2
         with:
           images: |
-            1password/kubernetes-secret-injector
+            1password/kubernetes-secrets-injector
           # Publish image for x.y.z, x.y and x
           # The latest tag is automatically added for semver tags
           tags: |
