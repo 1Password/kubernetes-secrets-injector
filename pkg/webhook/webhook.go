@@ -330,7 +330,7 @@ func setupConnectTokenEnvVar(ctx context.Context, container *corev1.Container, e
 	if connectTokenEnvVar == nil {
 		secretName := "connect-token"
 		secretKey := "token"
-		connectTokenSecret, err := CoreV1Client.Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
+		connectTokenSecret, err := K8sClient.Clientset.CoreV1().Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if connectTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, connectTokenSecretNameEnv, container)
 			overrideByEnvVar(&secretKey, connectTokenSecretKeyEnv, container)
@@ -353,7 +353,7 @@ func setupServiceAccountEnvVar(ctx context.Context, container *corev1.Container,
 	if serviceAccountEnvVar == nil {
 		secretName := "service-account"
 		secretKey := "token"
-		serviceAccountTokenSecret, err := CoreV1Client.Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
+		serviceAccountTokenSecret, err := K8sClient.Clientset.CoreV1().Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if serviceAccountTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, serviceAccountSecretNameEnv, container)
 			overrideByEnvVar(&secretName, serviceAccountSecretKeyEnv, container)

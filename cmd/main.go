@@ -24,6 +24,8 @@ func init() {
 }
 
 func main() {
+	webhook.InitK8sClient()
+
 	var parameters webhook.SecretInjectorParameters
 
 	glog.Info("Starting webhook")
@@ -54,7 +56,7 @@ func main() {
 	}
 
 	// create or update the mutatingwebhookconfiguration
-	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
+	err = webhook.K8sClient.CreateOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
 		glog.Errorf("Failed to create or update the mutating webhook configuration: %v", err)
 		os.Exit(1)
