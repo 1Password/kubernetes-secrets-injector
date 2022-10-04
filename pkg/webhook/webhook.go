@@ -32,7 +32,12 @@ const (
 
 	// binVolumeMountPath is the mount path where the OP CLI binary can be found.
 	binVolumeMountPath = "/op/bin/"
+
+	defaultOpCLIVersion = "2"
+	defaultConnectHost  = "http://onepassword-connect:8080"
 )
+
+var currentNamespace string
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
 var binVolume = corev1.Volume{
@@ -167,7 +172,9 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 
 // mutation process for injecting secrets into pods
 func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+	ctx := context.Background()
 	req := ar.Request
+	currentNamespace = req.Namespace
 	var pod corev1.Pod
 	if err := json.Unmarshal(req.Object.Raw, &pod); err != nil {
 		glog.Errorf("Could not unmarshal raw object: %v", err)
@@ -205,7 +212,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 
 	version, ok := pod.Annotations[versionAnnotation]
 	if !ok {
-		version = "2"
+		version = defaultOpCLIVersion
 	}
 
 	mutated := false
@@ -216,7 +223,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		if !mutate {
 			continue
 		}
-		c, didMutate, initContainerPatch, err := s.mutateContainer(&c, i)
+		c, didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
@@ -237,7 +244,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 			continue
 		}
 
-		c, didMutate, containerPatch, err := s.mutateContainer(&c, i)
+		c, didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -312,19 +319,18 @@ func setupConnectHostEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) 
 	// if Connect host is already set in the container do not overwrite it
 	if connectHostEnvVar == nil {
 		glog.Infof("%s not provided, setting default", connectHostEnv)
-		connectHostEnvVar = createEnvVar(connectHostEnv, "http://onepassword-connect:8080")
+		connectHostEnvVar = createEnvVar(connectHostEnv, defaultConnectHost)
 		*envs = append(*envs, *connectHostEnvVar)
 	}
 }
 
-func setupConnectTokenEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
+func setupConnectTokenEnvVar(ctx context.Context, container *corev1.Container, envs *[]corev1.EnvVar) {
 	connectTokenEnvVar := findContainerEnvVarByName(connectTokenEnv, container)
 	// if Connect token is already set in the container do not overwrite it
 	if connectTokenEnvVar == nil {
 		secretName := "onepassword-token"
 		secretKey := "token"
-		// TODO: provide context and dynamic namespace
-		connectTokenSecret, err := CoreV1Client.Secrets("default").Get(context.TODO(), secretName, metav1.GetOptions{})
+		connectTokenSecret, err := CoreV1Client.Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if connectTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, connectTokenSecretNameEnv, container)
 			overrideByEnvVar(&secretKey, connectTokenSecretKeyEnv, container)
@@ -341,14 +347,13 @@ func overrideByEnvVar(defaultValue *string, envVarName string, container *corev1
 	}
 }
 
-func setupServiceAccountEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
+func setupServiceAccountEnvVar(ctx context.Context, container *corev1.Container, envs *[]corev1.EnvVar) {
 	serviceAccountEnvVar := findContainerEnvVarByName(serviceAccountTokenEnv, container)
 	// if Service Account token is already set in the container do not overwrite it
 	if serviceAccountEnvVar == nil {
 		secretName := "service-account"
 		secretKey := "token"
-		// TODO: provide context and dynamic namespace
-		serviceAccountTokenSecret, err := CoreV1Client.Secrets("default").Get(context.TODO(), secretName, metav1.GetOptions{})
+		serviceAccountTokenSecret, err := CoreV1Client.Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if serviceAccountTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, serviceAccountSecretNameEnv, container)
 			overrideByEnvVar(&secretName, serviceAccountSecretKeyEnv, container)
@@ -392,15 +397,15 @@ func createEnvVarFromSecret(envVarName, secretName, tokenKey string) *corev1.Env
 	}
 }
 
-func createOPCLIEnvVarsPatch(container *corev1.Container, containerIndex int) []patchOperation {
+func createOPCLIEnvVarsPatch(ctx context.Context, container *corev1.Container, containerIndex int) []patchOperation {
 	var patch []patchOperation
 	var envs []corev1.EnvVar
 
-	setupConnectTokenEnvVar(container, &envs)
+	setupConnectTokenEnvVar(ctx, container, &envs)
 	if len(envs) == 1 { // create Connect host env var only when there is Connect Token
 		setupConnectHostEnvVar(container, &envs) // creates with default value if not provided
 	}
-	setupServiceAccountEnvVar(container, &envs)
+	setupServiceAccountEnvVar(ctx, container, &envs)
 
 	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)
 
@@ -443,7 +448,7 @@ func makeBuildVersion(version string) string {
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
 		return container, false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
@@ -471,7 +476,7 @@ func (s *SecretInjector) mutateContainer(container *corev1.Container, containerI
 	})
 
 	// creating patch for adding connect/service account environment variables to container. If they are already set in the container then this will be skipped
-	patch = append(patch, createOPCLIEnvVarsPatch(container, containerIndex)...)
+	patch = append(patch, createOPCLIEnvVarsPatch(cxt, container, containerIndex)...)
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
