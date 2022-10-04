@@ -68,7 +68,7 @@ func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 			},
 			NamespaceSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"secret-injection": "enabled",
+					"secrets-injection": "enabled",
 				},
 			},
 			FailurePolicy: &fail,

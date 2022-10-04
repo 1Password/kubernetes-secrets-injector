@@ -328,7 +328,7 @@ func setupConnectTokenEnvVar(ctx context.Context, container *corev1.Container, e
 	connectTokenEnvVar := findContainerEnvVarByName(connectTokenEnv, container)
 	// if Connect token is already set in the container do not overwrite it
 	if connectTokenEnvVar == nil {
-		secretName := "onepassword-token"
+		secretName := "connect-token"
 		secretKey := "token"
 		connectTokenSecret, err := CoreV1Client.Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if connectTokenSecret != nil && err == nil {
