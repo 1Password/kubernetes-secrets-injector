@@ -19,7 +19,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/1password/kubernetes-secret-injector/pkg/webhook"
+	"github.com/1password/kubernetes-secrets-injector/pkg/webhook"
 	"github.com/golang/glog"
 	"reflect"
 
