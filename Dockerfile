@@ -16,11 +16,11 @@ ARG secret_injector_version=dev
 RUN CGO_ENABLED=0 \
     GO111MODULE=on \
     go build \
-    -ldflags "-X \"github.com/1Password/kubernetes-secret-injector/version.Version=$secret_injector_version\"" \
+    -ldflags "-X \"github.com/1Password/kubernetes-secrets-injector/version.Version=$secret_injector_version\"" \
     -mod vendor \
     -a -o injector ./cmd
 
-# Use distroless as minimal base image to package the secret-injector binary
+# Use distroless as minimal base image to package the secrets-injector binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

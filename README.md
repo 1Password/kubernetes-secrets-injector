@@ -91,7 +91,7 @@ You should deploy 1Password Connect to your infrastructure in order to retrieve 
 ### 2. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
-kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n secret-injector
+kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN
 ```
 
 ### 3.Deploy injector
@@ -117,7 +117,7 @@ kubectl create -f deploy/service.yaml
 - `YOUR_OP_SERVICE_ACCOUNT_TOKEN` - your Service Acccount token
 
 ```
-kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN -n secret-injector
+kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN
 ```
 
 ### 2.Deploy injector
@@ -135,5 +135,5 @@ kubectl create -f deploy/service.yaml
 If you are trouble getting secrets injected in your pod, check the following:
 
 1. Check that that the namespace of your pod has the `secret-injection=enabled` label
-2. Ensure that the 1Password Secret Injector webhook is running (`secret-injector` by default).
+2. Ensure that the 1Password Secret Injector webhook is running (`secrets-injector` by default).
 3. Check that your container has a `command` field specifying the command to run the app in your container

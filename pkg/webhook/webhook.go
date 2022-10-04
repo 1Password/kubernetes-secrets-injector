@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/1password/kubernetes-secret-injector/version"
+	"github.com/1password/kubernetes-secrets-injector/version"
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
