@@ -6,10 +6,10 @@ The 1Password Secrets Injector implements a mutating webhook to inject 1Password
 
 [Setup the infrastructure](#setup-and-deployment)
 
-For every namespace you want the 1Password Secret Injector to inject secrets for, you must add the label `op-secret-injection=enabled` label to the namespace:
+For every namespace you want the 1Password Secret Injector to inject secrets for, you must add the label `secrets-injection=enabled` label to the namespace:
 
 ```
-kubectl label namespace <namespace> op-secret-injection=enabled
+kubectl label namespace <namespace> secrets-injection=enabled
 ```
 
 To inject a 1Password secret as an environment variable, your pod or deployment you must add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`. You must also annotate your pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
@@ -91,7 +91,7 @@ You should deploy 1Password Connect to your infrastructure in order to retrieve 
 ### 2. Create kubernetes secret containing `OP_CONNECT_TOKEN`
 
 ```
-kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN -n op-injector
+kubectl create secret generic onepassword-token --from-literal=token=YOUR_OP_CONNECT_TOKEN
 ```
 
 ### 3.Deploy injector
@@ -117,7 +117,7 @@ kubectl create -f deploy/service.yaml
 - `YOUR_OP_SERVICE_ACCOUNT_TOKEN` - your Service Acccount token
 
 ```
-kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN -n op-injector
+kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN
 ```
 
 ### 2.Deploy injector
@@ -134,7 +134,6 @@ kubectl create -f deploy/service.yaml
 
 If you are trouble getting secrets injected in your pod, check the following:
 
-1. Check that that the namespace of your pod has the `op-secret-injection=enabled` label
-2. Check that the `caBundle` in `mutatingwebhook.yaml` is set with a correct value
-3. Ensure that the 1Password Secret Injector webhook is running (`op-injector` by default).
-4. Check that your container has a `command` field specifying the command to run the app in your container
+1. Check that that the namespace of your pod has the `secrets-injection=enabled` label
+2. Ensure that the 1Password Secret Injector webhook is running (`secrets-injector` by default).
+3. Check that your container has a `command` field specifying the command to run the app in your container

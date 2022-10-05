@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	webhookConfigName = "op-injector-webhook-config"
+	webhookConfigName = "secrets-injector-webhook-config"
 	webhookInjectPath = "/inject"
 )
 
@@ -56,7 +56,7 @@ func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 			Name: webhookConfigName,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{{
-			Name:                    "op-injector.1password.com",
+			Name:                    "secrets-injector.1password.com",
 			AdmissionReviewVersions: []string{"v1", "v1beta1"},
 			SideEffects:             &sideEffect,
 			ClientConfig: admissionregistrationv1.WebhookClientConfig{
@@ -82,7 +82,7 @@ func createOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 			},
 			NamespaceSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"op-secret-injection": "enabled",
+					"secrets-injection": "enabled",
 				},
 			},
 			FailurePolicy: &fail,

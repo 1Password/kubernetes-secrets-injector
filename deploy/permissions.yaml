@@ -18,7 +18,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: op-injector
-    namespace: op-injector
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

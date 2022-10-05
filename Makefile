@@ -10,7 +10,7 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 versionFile = $(CURDIR)/.VERSION
 curVersion := $(shell cat $(versionFile) | sed 's/^v//')
 
-INJECTOR_NAME := onepassword-secrets-injector
+INJECTOR_NAME := kubernetes-secrets-injector
 INJECTOR_DOCKER_IMG_TAG ?= $(INJECTOR_NAME):v$(curVersion)
 
 test:	## Run test suite
@@ -19,17 +19,17 @@ test:	## Run test suite
 test/coverage:	## Run test suite with coverage report
 	go test -v ./... -cover
 
-build/secret-injector:	## Build secret-injector Docker image
-	@docker build -f secret-injector/Dockerfile --build-arg injector_version=$(curVersion) -t $(INJECTOR_DOCKER_IMG_TAG) .
+build/secrets-injector:	## Build secrets-injector Docker image
+	@docker build -f Dockerfile --build-arg injector_version=$(curVersion) -t $(INJECTOR_DOCKER_IMG_TAG) .
 	@echo "Successfully built and tagged image."
 	@echo "Tag: $(INJECTOR_DOCKER_IMG_TAG)"
 
-build/secret-injector/local:	## Build local version of the secret-injector Docker image 
-	@docker build -f secret-injector/Dockerfile -t local/$(INJECTOR_DOCKER_IMG_TAG) .
+build/secrets-injector/local:	## Build local version of the secrets-injector Docker image
+	@docker build -f Dockerfile -t local/$(INJECTOR_DOCKER_IMG_TAG) .
 
-build/secret-injector/binary: clean	## Build secret-injector binary
+build/secrets-injector/binary: clean	## Build secrets-injector binary
 	@mkdir -p dist
-	@go build -mod vendor -a -o manager ./secret-injector/cmd/manager/main.go
+	@go build -mod vendor -a -o manager ./cmd/manager/main.go
 	@mv manager ./dist
 
 clean:
