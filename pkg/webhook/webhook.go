@@ -33,11 +33,14 @@ const (
 	// binVolumeMountPath is the mount path where the OP CLI binary can be found.
 	binVolumeMountPath = "/op/bin/"
 
-	defaultOpCLIVersion = "2"
-	defaultConnectHost  = "http://onepassword-connect:8080"
+	defaultOpCLIVersion             = "2"
+	defaultConnectHost              = "http://onepassword-connect:8080"
+	defaultConnectTokenSecretName   = "connect-token"
+	defaultServiceAccountSecretName = "service-account"
+	defaultDataKey                  = "token"
 )
 
-var currentNamespace string
+var currentNamespace = "default"
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
 var binVolume = corev1.Volume{
@@ -87,7 +90,6 @@ type patchOperation struct {
 
 // Check if the pod should have secrets injected
 func mutationRequired(metadata *metav1.ObjectMeta) bool {
-
 	annotations := metadata.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
@@ -328,8 +330,8 @@ func setupConnectTokenEnvVar(ctx context.Context, container *corev1.Container, e
 	connectTokenEnvVar := findContainerEnvVarByName(connectTokenEnv, container)
 	// if Connect token is already set in the container do not overwrite it
 	if connectTokenEnvVar == nil {
-		secretName := "connect-token"
-		secretKey := "token"
+		secretName := defaultConnectTokenSecretName
+		secretKey := defaultDataKey
 		connectTokenSecret, err := K8sClient.Clientset.CoreV1().Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if connectTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, connectTokenSecretNameEnv, container)
@@ -351,8 +353,8 @@ func setupServiceAccountEnvVar(ctx context.Context, container *corev1.Container,
 	serviceAccountEnvVar := findContainerEnvVarByName(serviceAccountTokenEnv, container)
 	// if Service Account token is already set in the container do not overwrite it
 	if serviceAccountEnvVar == nil {
-		secretName := "service-account"
-		secretKey := "token"
+		secretName := defaultServiceAccountSecretName
+		secretKey := defaultDataKey
 		serviceAccountTokenSecret, err := K8sClient.Clientset.CoreV1().Secrets(currentNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if serviceAccountTokenSecret != nil && err == nil {
 			overrideByEnvVar(&secretName, serviceAccountSecretNameEnv, container)
@@ -557,7 +559,8 @@ func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
-	glog.Infof("Ready to write reponse ...")
+	glog.Infof("Ready to write response ...")
+
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
