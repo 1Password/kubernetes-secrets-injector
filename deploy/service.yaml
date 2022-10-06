@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: op-injector-svc
+  name: secrets-injector
   labels:
-    app: op-injector
+    app: secrets-injector
 spec:
   ports:
   - port: 443
     targetPort: 8443
   selector:
-    app: op-injector
+    app: secrets-injector
