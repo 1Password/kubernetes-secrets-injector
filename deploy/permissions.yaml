@@ -9,7 +9,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: secrets-injector
-  namespace: default
   labels:
     app: secrets-injector
 roleRef:
@@ -19,7 +18,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: secrets-injector
-    namespace: default
+    namespace: test-injector
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
