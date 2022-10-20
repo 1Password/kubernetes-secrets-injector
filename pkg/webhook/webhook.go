@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/1password/kubernetes-secrets-injector/pkg/utils"
 	"github.com/1password/kubernetes-secrets-injector/version"
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -212,9 +213,9 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		containers[container] = struct{}{}
 	}
 
-	version, ok := pod.Annotations[versionAnnotation]
+	versionAnnotation, ok := pod.Annotations[versionAnnotation]
 	if !ok {
-		version = defaultOpCLIVersion
+		versionAnnotation = defaultOpCLIVersion
 	}
 
 	mutated := false
@@ -273,7 +274,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	// into a shared volume mount.
 	var binInitContainer = corev1.Container{
 		Name:            "copy-op-bin",
-		Image:           "1password/op" + ":" + version,
+		Image:           "1password/op" + ":" + versionAnnotation,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command: []string{"sh", "-c",
 			fmt.Sprintf("cp /usr/local/bin/op %s", binVolumeMountPath)},
@@ -426,27 +427,11 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 		},
 		{
 			Name:  "OP_INTEGRATION_BUILDNUMBER",
-			Value: makeBuildVersion(version.Version),
+			Value: utils.MakeBuildVersion(version.Version),
 		},
 	}
 
 	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
-}
-
-func makeBuildVersion(version string) string {
-	parts := strings.Split(strings.ReplaceAll(version, "-beta", ""), ".")
-	buildVersion := parts[0]
-	for i := 1; i < len(parts); i++ {
-		if len(parts[i]) == 1 {
-			buildVersion += "0" + parts[i]
-		} else {
-			buildVersion += parts[i]
-		}
-	}
-	if len(parts) != 3 {
-		return buildVersion
-	}
-	return buildVersion + "01"
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
@@ -510,7 +495,7 @@ func setEnvironment(container corev1.Container, containerIndex int, addedEnv []c
 func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
