@@ -30,13 +30,9 @@ spec:
         app: app-example
     spec:
       containers:
-        - name: app-example
+        - name: app-example1
           image: my-image
           command: ["./example"]
-          # as OP_CONNECT_TOKEN or OP_SERVICE_ACCOUNT_TOKEN no provided,
-          # it tries to extract from default secrets
-          # OP_CONNECT_TOKEN from the secret `connect-token` with the key `token`
-          # OP_SERVICE_ACCOUT_TOKEN from the secret `service-account` with the key `token`
           env:
           - name: DB_USERNAME
             value: op://my-vault/my-item/sql/username
@@ -45,36 +41,23 @@ spec:
         
         - name: app-example2
           image: my-image
-          # it tries to find OP_CONNECT_TOKEN and OP_SERVICE_ACCOUNT_TOKEN 
-          # from the provided secret with provided token
-          # OP_CONNECT_TOKEN - from secret with the name OP_CONNECT_TOKEN_SECRET_NAME and
-          #                     data key OP_CONNECT_TOKEN_KEY 
-          # OP_SERVICE_ACCOUNT_TOKEN - from secret with the name OP_SERVICE_ACCOUNT_SECRET_NAME and
-          #                            data key OP_SERVICE_ACCOUNT_TOKEN_KEY 
+          # This app will have the secrets injected using Connect.
           env:
-          - name: OP_CONNECT_TOKEN_SECRET_NAME
-            value: connect-token
-          - name: OP_CONNECT_TOKEN_KEY
-            value: token
-          - name: OP_SERVICE_ACCOUNT_SECRET_NAME
-            value: service-account
-          - name: OP_SERVICE_ACCOUNT_TOKEN_KEY
-            value: token
-          - name: DB_USERNAME
-            value: op://my-vault/my-item/sql/username
-          - name: DB_PASSWORD
-            value: op://my-vault/my-item/sql/password
-            
-        - name: app-example2
-          image: my-image
-          # it tries to find OP_CONNECT_TOKEN and OP_SERVICE_ACCOUNT_TOKEN 
-          # from the provided secrets
-          env:
+          - name: OP_CONNECT_HOST
+            value: http://onepassword-connect:8080
           - name: OP_CONNECT_TOKEN
             valueFrom:
               secretKeyRef:
                 name: connect-token
                 key: token
+          - name: DB_USERNAME
+            value: op://my-vault/my-item/sql/username
+          - name: DB_PASSWORD
+            value: op://my-vault/my-item/sql/password
+            
+        - name: app-example3
+          image: my-image
+          # this app will have the secrets injected useing a Service Account.
           - name: OP_SERVICE_ACCOUNT_TOKEN
             valueFrom:
               secretKeyRef:
@@ -190,11 +173,11 @@ annotations:
   operator.1password.io/inject: "app-example1,app-example2,app-example3"
 ```
 
-### 5. Annotate your client pod/deployment with the minimum op-cli version  annotation that supports Service Accounts `2.7.1-beta.01`
+### 5. Annotate your client pod/deployment with the minimum op-cli version  annotation that supports Service Accounts `2.8.0-beta.05`
 ```
 # client-deployment.yaml
 annotations:
-  operator.1password.io/version: "2.7.1-beta.01"
+  operator.1password.io/version: "2.8.0-beta.05"
 ```
 
 ### 5. Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
@@ -262,25 +245,6 @@ env:
       secretKeyRef:
         name: service-account
         key: token
-  - name: DB_USERNAME
-    value: op://my-vault/my-item/sql/username
-```
-4. As the reference to the secret using env variables
-```
-kubectl create secret generic connect-token --from-literal=token=YOUR_TOKEN
-kubectl create secret generic service-account --from-literal=token=YOUR_TOKEN
-
-# your-app-pod/deployment.yaml
-env:
-  # OP_CONNECT_HOST default value is 'http://onepassword-connect:8080'
-  - name: OP_CONNECT_TOKEN_SECRET_NAME
-    value: connect-token
-  - name: OP_CONNECT_TOKEN_KEY
-    value: token
-  - name: OP_SERVICE_ACCOUNT_SECRET_NAME
-    value: service-account
-  - name: OP_SERVICE_ACCOUNT_TOKEN_KEY
-    value: token
   - name: DB_USERNAME
     value: op://my-vault/my-item/sql/username
 ```
