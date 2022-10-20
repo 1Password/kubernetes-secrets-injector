@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// create or update the mutatingwebhookconfiguration
-	err = webhook.K8sClient.CreateOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
+	err = webhook.CreateOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
 		glog.Errorf("Failed to create or update the mutating webhook configuration: %v", err)
 		os.Exit(1)

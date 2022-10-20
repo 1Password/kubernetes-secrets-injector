@@ -1,21 +1,21 @@
-package webhook_test
+package webhook
 
 import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stestclient "k8s.io/client-go/kubernetes/fake"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-
-	"github.com/1password/kubernetes-secrets-injector/pkg/webhook"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 func createRequest(body io.Reader) *http.Request {
@@ -40,10 +40,8 @@ var _ = Describe("Webhook Test", Ordered, func() {
 	var handler http.HandlerFunc
 
 	BeforeAll(func() {
-		webhook.K8sClient = &webhook.Client{
-			Clientset: k8stestclient.NewSimpleClientset(),
-		}
-		secretInjector := webhook.SecretInjector{}
+		k8sClient = k8stestclient.NewSimpleClientset()
+		secretInjector := SecretInjector{}
 		handler = secretInjector.Serve
 	})
 

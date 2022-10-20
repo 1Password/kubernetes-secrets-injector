@@ -19,11 +19,7 @@ var (
 	webhookInjectPath = "/inject"
 )
 
-type Client struct {
-	Clientset kubernetes.Interface
-}
-
-var K8sClient *Client
+var k8sClient kubernetes.Interface
 
 func InitK8sClient() {
 	glog.Infof("Initializing the kube client...")
@@ -32,14 +28,10 @@ func InitK8sClient() {
 		glog.Errorf("Error creating cluster config %v", err)
 		os.Exit(1)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	k8sClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		glog.Errorf("Error creating clientset %v", err)
 		os.Exit(1)
-	}
-
-	K8sClient = &Client{
-		Clientset: clientset,
 	}
 }
 
@@ -56,9 +48,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-func (c *Client) CreateOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookService, webhookNamespace string) error {
+func CreateOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookService, webhookNamespace string) error {
 	glog.Infof("Creating or updating the mutatingwebhookconfiguration: %s", webhookConfigName)
-	MutatingWebhookConfigV1Client := c.Clientset.AdmissionregistrationV1()
+	mutatingWebhookConfigV1Client := k8sClient.AdmissionregistrationV1()
 	fail := admissionregistrationv1.Fail
 	sideEffect := admissionregistrationv1.SideEffectClassNone
 	mutatingWebhookConfig := &admissionregistrationv1.MutatingWebhookConfiguration{
@@ -99,9 +91,9 @@ func (c *Client) CreateOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer,
 		}},
 	}
 
-	foundWebhookConfig, err := MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
+	foundWebhookConfig, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
-		if _, err := MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Create(context.TODO(), mutatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+		if _, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Create(context.TODO(), mutatingWebhookConfig, metav1.CreateOptions{}); err != nil {
 			glog.Warningf("Failed to create the mutatingwebhookconfiguration: %s", webhookConfigName)
 			return err
 		}
@@ -113,7 +105,7 @@ func (c *Client) CreateOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer,
 		// there is an existing mutatingWebhookConfiguration
 		if reflect.DeepEqual(foundWebhookConfig, mutatingWebhookConfig) {
 			mutatingWebhookConfig.ObjectMeta.ResourceVersion = foundWebhookConfig.ObjectMeta.ResourceVersion
-			if _, err := MutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Update(context.TODO(), mutatingWebhookConfig, metav1.UpdateOptions{}); err != nil {
+			if _, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Update(context.TODO(), mutatingWebhookConfig, metav1.UpdateOptions{}); err != nil {
 				glog.Warningf("Failed to update the mutatingwebhookconfiguration: %s", webhookConfigName)
 				return err
 			}
