@@ -307,30 +307,26 @@ func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []pa
 	return json.Marshal(patch)
 }
 
-func setupConnectHostEnvVar(container *corev1.Container, envs *[]corev1.EnvVar) {
-	connectHostEnvVar := findContainerEnvVarByName(connectHostEnv, container)
-	// if Connect host is already set in the container do not overwrite it
-	if connectHostEnvVar == nil {
-		glog.Infof("%s not provided, setting default", connectHostEnv)
-		connectHostEnvVar = createEnvVar(connectHostEnv, defaultConnectHost)
-		*envs = append(*envs, *connectHostEnvVar)
+func isEnvVarSetup(envVarName string) func(c *corev1.Container) bool {
+	return func(container *corev1.Container) bool {
+		envVar := findContainerEnvVarByName(envVarName, container)
+		if envVar == nil {
+			glog.Infof("%s not provided", envVarName)
+		}
+		return envVar != nil
 	}
 }
 
-func setupConnectTokenEnvVar(container *corev1.Container) {
-	connectTokenEnvVar := findContainerEnvVarByName(connectTokenEnv, container)
-	// if Connect token is already set in the container do not overwrite it
-	if connectTokenEnvVar == nil {
-		glog.Infof("%s not provided", connectTokenEnv)
-	}
+func isConnectHostEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(connectHostEnv)(container)
 }
 
-func setupServiceAccountEnvVar(container *corev1.Container) {
-	serviceAccountEnvVar := findContainerEnvVarByName(serviceAccountTokenEnv, container)
-	// if Service Account token is already set in the container do not overwrite it
-	if serviceAccountEnvVar == nil {
-		glog.Infof("%s not provided", serviceAccountTokenEnv)
-	}
+func isConnectTokenEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(connectTokenEnv)(container)
+}
+
+func isServiceAccountEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(serviceAccountTokenEnv)(container)
 }
 
 func findContainerEnvVarByName(envName string, container *corev1.Container) *corev1.EnvVar {
@@ -353,19 +349,16 @@ func createEnvVar(name, value string) *corev1.EnvVar {
 	}
 }
 
-func createOPCLIEnvVarsPatch(ctx context.Context, container *corev1.Container, containerIndex int) []patchOperation {
-	var patch []patchOperation
-	var envs []corev1.EnvVar
-
-	setupConnectTokenEnvVar(container)
-	if len(envs) == 1 { // create Connect host env var only when there is Connect Token
-		setupConnectHostEnvVar(container, &envs) // creates with default value if not provided
+func checkOPCLIEnvSetup(container *corev1.Container) {
+	isConnectSetup := isConnectTokenEnvVarSetup(container) && isConnectHostEnvVarSetup(container)
+	isServiceAccountSetup := isServiceAccountEnvVarSetup(container)
+	if isConnectSetup {
+		glog.Info("OP CLI will be used with Connect")
+	} else if !isConnectSetup && isServiceAccountSetup {
+		glog.Info("OP CLI will be used with Service Account")
+	} else {
+		glog.Info("No credentials provided to authenticate OP CLI")
 	}
-	setupServiceAccountEnvVar(container)
-
-	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)
-
-	return patch
 }
 
 func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
@@ -415,8 +408,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 		Value: container.Command,
 	})
 
-	// creating patch for adding connect/service account environment variables to container. If they are already set in the container then this will be skipped
-	patch = append(patch, createOPCLIEnvVarsPatch(cxt, container, containerIndex)...)
+	checkOPCLIEnvSetup(container)
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
