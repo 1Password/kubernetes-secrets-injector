@@ -6,7 +6,6 @@ The 1Password Secrets Injector implements a mutating webhook to inject 1Password
 - [Setup and deployment](#setup-and-deployment)
 - [Use with 1Password Connect](#use-with-1password-connect)
 - [Use with Service Account](#use-with-service-account)
-- [Use with the 1Password Kubernetes Operator](#use-with-the-1password-kubernetes-operator)
 - [Provide `op-cli` credentials on your app pod/deployment](#provide-op-cli-credentials-on-your-app-poddeployment)
 - [Troubleshooting](#troubleshooting)
 
@@ -25,21 +24,12 @@ spec:
   template:
     metadata:
       annotations:
-        operator.1password.io/inject: "app-example1,app-example2,app-example3"
+        operator.1password.io/inject: "app-example1,app-example2"
       labels:
         app: app-example
     spec:
       containers:
         - name: app-example1
-          image: my-image
-          command: ["./example"]
-          env:
-          - name: DB_USERNAME
-            value: op://my-vault/my-item/sql/username
-          - name: DB_PASSWORD
-            value: op://my-vault/my-item/sql/password
-        
-        - name: app-example2
           image: my-image
           # This app will have the secrets injected using Connect.
           env:
@@ -55,7 +45,7 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
             
-        - name: app-example3
+        - name: app-example2
           image: my-image
           # this app will have the secrets injected useing a Service Account.
           - name: OP_SERVICE_ACCOUNT_TOKEN
@@ -104,20 +94,13 @@ kubectl label namespace default secrets-injection=enabled
 ```
 
 ### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
-**_ Note: _** Replace OP_CONNECT_TOKEN_SECRET_NAME, OP_CONNECT_TOKEN_KEY, YOUR_OP_CONNECT_TOKEN with values you'd like to use.
-
-- `OP_CONNECT_TOKEN_SECRET_NAME` - name of the secret that stores the Connect token.
-- `OP_CONNECT_TOKEN_KEY` - name of the data field in the secret that stores the Connect token
-- `YOUR_OP_CONNECT_TOKEN` - your Connect token
 ```
-kubectl create secret generic OP_CONNECT_TOKEN_SECRET_NAME --from-literal=OP_CONNECT_TOKEN_KEY=YOUR_OP_CONNECT_TOKEN
+kubectl create secret generic connect-token --from-literal=token=YOUR_OP_CONNECT_TOKEN
 ```
 
 ### 4.Deploy injector
 ```
-kubectl create -f deploy/permissions.yaml
-kubectl create -f deploy/deployment.yaml
-kubectl create -f deploy/service.yaml
+make deploy
 ```
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
@@ -126,7 +109,7 @@ kubectl create -f deploy/service.yaml
 ```
 # client-deployment.yaml
 annotations:
-  operator.1password.io/inject: "app-example1,app-example2,app-example3"
+  operator.1password.io/inject: "app-example1"
 ```
 
 ### 6. Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
@@ -143,14 +126,8 @@ env:
 **_ Note: _** Service Accounts are currently in Beta and are only available to select users.
 
 ### 1. Create kubernetes secret containing `OP_SERVICE_ACCOUNT_TOKEN`
-**_ Note: _** Replace OP_SERVICE_ACCOUNT_SECRET_NAME, OP_SERVICE_ACCOUNT_TOKEN_KEY, YOUR_OP_SERVICE_ACCOUNT_TOKEN with values you'd like to use.
-
-- `OP_SERVICE_ACCOUNT_SECRET_NAME` - name of the secret that stores the Service Account token.
-- `OP_SERVICE_ACCOUNT_TOKEN_KEY` - name of the data field in the secret that stores the Service Account token
-- `YOUR_OP_SERVICE_ACCOUNT_TOKEN` - your Service Account token
-
 ```
-kubectl create secret generic OP_SERVICE_ACCOUNT_SECRET_NAME --from-literal=OP_SERVICE_ACCOUNT_TOKEN_KEY=YOUR_OP_SERVICE_ACCOUNT_TOKEN
+kubectl create secret generic service-account --from-literal=token=YOUR_OP_SERVICE_ACCOUNT_TOKEN
 ```
 
 ### 2. Add the label `secrets-injection=enabled` label to the namespace:
@@ -160,9 +137,7 @@ kubectl label namespace default secrets-injection=enabled
 
 ### 3.Deploy injector
 ```
-kubectl create -f deploy/permissions.yaml
-kubectl create -f deploy/deployment.yaml
-kubectl create -f deploy/service.yaml
+make deploy
 ```
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
@@ -170,7 +145,7 @@ kubectl create -f deploy/service.yaml
 ```
 # client-deployment.yaml
 annotations:
-  operator.1password.io/inject: "app-example1,app-example2,app-example3"
+  operator.1password.io/inject: "app-example1"
 ```
 
 ### 5. Annotate your client pod/deployment with the minimum op-cli version  annotation that supports Service Accounts `2.8.0-beta.05`
@@ -190,32 +165,10 @@ env:
 ### 6. [Provide op-cli credentials on your app pod/deployment](#provide-op-cli-credentials-on-your-app-poddeployment)
 
 
-## Use with the 1Password Kubernetes Operator
-The 1Password Secrets Injector for Kubernetes can be used in conjuction with the 1Password Kubernetes Operator in order to provide automatic deployment restarts when a 1Password item being used by your deployment has been updated.
-
-[Click here for more details on the 1Password Kubernetes Operator](https://github.com/1Password/onepassword-operator)
-
-
 ## Provide `op-cli` credentials on your app pod/deployment
-**_ Note: _** `OP_CONNECT_HOST` default `http://onepassword-connect:8080` if not set explicitly
-#### Do not forget to create secrets containing op-cli tokens
-
 You can do that in the different ways:
 
-1. Use default values to extract from the secret
-```
-kubectl create secret generic connect-token --from-literal=token=YOUR_TOKEN
-kubectl create secret generic service-account --from-literal=token=YOUR_TOKEN
-
-# your-app-pod/deployment.yaml
-env:
-  # OP_CONNECT_HOST default value is 'http://onepassword-connect:8080'
-  # OP_CONNECT_TOKEN from the secret `connect-token` with the key `token`
-  # OP_SERVICE_ACCOUT_TOKEN from the secret `service-account` with the key `token`
-  - name: DB_USERNAME
-    value: op://my-vault/my-item/sql/username
-```
-2. Directly set env variables `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`, `OP_SERVICE_ACCOUNT_TOKEN`
+1. Directly set env variables `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`, `OP_SERVICE_ACCOUNT_TOKEN`
 ```
 - env:
   - name: OP_CONNECT_HOST
@@ -227,7 +180,7 @@ env:
   - name: DB_USERNAME
     value: op://my-vault/my-item/sql/username
 ```
-3. As the reference to the secret
+2. As the reference to the secret
 ```
 kubectl create secret generic connect-token --from-literal=token=YOUR_TOKEN
 kubectl create secret generic service-account --from-literal=token=YOUR_TOKEN
