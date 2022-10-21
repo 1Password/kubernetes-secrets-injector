@@ -18,7 +18,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: secrets-injector
-    namespace: secrets-injector
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

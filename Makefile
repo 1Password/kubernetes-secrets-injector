@@ -1,7 +1,20 @@
 export MAIN_BRANCH ?= main
 
+ifndef ignore-not-found
+  ignore-not-found = false
+endif
+
 .DEFAULT_GOAL := help
-.PHONY: test build build/binary build/local clean test/coverage release/prepare release/tag .check_bump_type .check_git_clean help
+.PHONY: test build build/binary build/local clean test/coverage release/prepare release/tag .check_bump_type .check_git_clean help kustomize set-namespace deploy undeploy
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+KUSTOMIZE_VERSION ?= v4.5.5
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 
 GIT_BRANCH := $(shell git symbolic-ref --short HEAD)
 WORKTREE_CLEAN := $(shell git status --porcelain 1>/dev/null 2>&1; echo $$?)
@@ -37,6 +50,19 @@ clean:
 
 help:	## Prints this help message
 	@grep -E '^[\/a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+$(KUSTOMIZE): $(LOCALBIN)
+	test -s $(LOCALBIN)/kustomize || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+
+set-namespace: kustomize
+	cd deploy && $(KUSTOMIZE) edit set namespace $(shell kubectl config view --minify -o jsonpath={..namespace})
+
+deploy: set-namespace
+	$(KUSTOMIZE) build deploy | kubectl apply -f -
+
+undeploy:
+	$(KUSTOMIZE) build deploy --reorder none | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 
 ## Release functions =====================
