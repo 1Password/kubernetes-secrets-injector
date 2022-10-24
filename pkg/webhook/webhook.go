@@ -31,7 +31,6 @@ const (
 	binVolumeMountPath = "/op/bin/"
 
 	defaultOpCLIVersion = "2"
-	defaultConnectHost  = "http://onepassword-connect:8080"
 )
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
@@ -340,13 +339,6 @@ func findContainerEnvVarByName(envName string, container *corev1.Container) *cor
 	}
 
 	return envVar
-}
-
-func createEnvVar(name, value string) *corev1.EnvVar {
-	return &corev1.EnvVar{
-		Name:  name,
-		Value: value,
-	}
 }
 
 func checkOPCLIEnvSetup(container *corev1.Container) {

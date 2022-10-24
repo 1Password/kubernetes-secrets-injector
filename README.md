@@ -2,14 +2,14 @@
 
 The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a pod or deployment. Unlike the 1Password Kubernetes Operator, the Secrets Injector does not create a Kubernetes Secret when assigning secrets to your resource.
 
-- [Example](#example)
+- [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
 - [Use with 1Password Connect](#use-with-1password-connect)
 - [Use with Service Account](#use-with-service-account)
-- [Provide `op-cli` credentials on your app pod/deployment](#provide-op-cli-credentials-on-your-app-poddeployment)
+- [Provide 1Password CLI credentials on your app pod/deployment](#provide-1password-cli-credentials-on-your-app-poddeployment)
 - [Troubleshooting](#troubleshooting)
 
-## Example
+## Usage
 ```
 # client-deployment.yaml - you client deployment/pod where you want to inject secrets
 
@@ -105,21 +105,23 @@ make deploy
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
 
-### 5. Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
+### 5. Annotate your client pod/deployment with `inject` annotation
+Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
 ```
 # client-deployment.yaml
 annotations:
   operator.1password.io/inject: "app-example1"
 ```
 
-### 6. Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
+### 6. Configure resource's environment
+Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
 ```
 env:
   - name: DB_USERNAME
     value: op://my-vault/my-item/sql/username
 ```
 
-### 7. [Provide op-cli credentials on your app pod/deployment](#provide-op-cli-credentials-on-your-app-poddeployment)
+### 7. [Provide 1Password CLI credentials on your app pod/deployment](#provide-1password-cli-credentials-on-your-app-poddeployment)
 
 
 ## Use with Service Account
@@ -141,31 +143,34 @@ make deploy
 ```
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
 
-### 4. Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
+### 4. Annotate your client pod/deployment with `inject` annotation
+Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
 ```
 # client-deployment.yaml
 annotations:
   operator.1password.io/inject: "app-example1"
 ```
 
-### 5. Annotate your client pod/deployment with the minimum op-cli version  annotation that supports Service Accounts `2.8.0-beta.05`
+### 5. Annotate your client pod/deployment with `version` annotation
+Annotate your client pod/deployment with the minimum op-cli version annotation that supports Service Accounts `2.8.0-beta.05`
 ```
 # client-deployment.yaml
 annotations:
   operator.1password.io/version: "2.8.0-beta.05"
 ```
 
-### 5. Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
+### 6. Configure resource's environment
+Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
 ```
 env:
   - name: DB_USERNAME
     value: op://my-vault/my-item/sql/username
 ```
 
-### 6. [Provide op-cli credentials on your app pod/deployment](#provide-op-cli-credentials-on-your-app-poddeployment)
+### 7. [Provide 1Password CLI credentials on your app pod/deployment](#provide-1password-cli-credentials-on-your-app-poddeployment)
 
 
-## Provide `op-cli` credentials on your app pod/deployment
+## Provide 1Password CLI credentials on your app pod/deployment
 You can do that in the different ways:
 
 1. Directly set env variables `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`, `OP_SERVICE_ACCOUNT_TOKEN`
