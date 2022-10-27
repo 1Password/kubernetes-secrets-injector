@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/1password/kubernetes-secrets-injector/pkg/utils"
 	"github.com/1password/kubernetes-secrets-injector/version"
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -18,11 +19,18 @@ import (
 )
 
 const (
+	connectHostEnv  = "OP_CONNECT_HOST"
+	connectTokenEnv = "OP_CONNECT_TOKEN"
+
+	serviceAccountTokenEnv = "OP_SERVICE_ACCOUNT_TOKEN"
+
 	// binVolumeName is the name of the volume where the OP CLI binary is stored.
 	binVolumeName = "op-bin"
 
 	// binVolumeMountPath is the mount path where the OP CLI binary can be found.
 	binVolumeMountPath = "/op/bin/"
+
+	defaultOpCLIVersion = "2"
 )
 
 // binVolume is the shared, in-memory volume where the OP CLI binary lives.
@@ -55,7 +63,6 @@ const (
 )
 
 type SecretInjector struct {
-	Config Config
 	Server *http.Server
 }
 
@@ -74,7 +81,6 @@ type patchOperation struct {
 
 // Check if the pod should have secrets injected
 func mutationRequired(metadata *metav1.ObjectMeta) bool {
-
 	annotations := metadata.GetAnnotations()
 	if annotations == nil {
 		annotations = map[string]string{}
@@ -89,7 +95,7 @@ func mutationRequired(metadata *metav1.ObjectMeta) bool {
 		required = true
 	}
 
-	glog.Infof("Pod %v at namepspace %v. Secret injection status: %v Secret Injection Enabled:%v", metadata.Name, metadata.Namespace, status, required)
+	glog.Infof("Pod %v at namespace %v. Secret injection status: %v Secret Injection Enabled:%v", metadata.Name, metadata.Namespace, status, required)
 	return required
 }
 
@@ -196,9 +202,9 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		containers[container] = struct{}{}
 	}
 
-	version, ok := pod.Annotations[versionAnnotation]
+	versionAnnotation, ok := pod.Annotations[versionAnnotation]
 	if !ok {
-		version = "2"
+		versionAnnotation = defaultOpCLIVersion
 	}
 
 	mutated := false
@@ -232,7 +238,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 
 		c, didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
-			glog.Error("Error occured mutating container for secret injection: ", err)
+			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
@@ -257,7 +263,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	// into a shared volume mount.
 	var binInitContainer = corev1.Container{
 		Name:            "copy-op-bin",
-		Image:           "1password/op" + ":" + version,
+		Image:           "1password/op" + ":" + versionAnnotation,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command: []string{"sh", "-c",
 			fmt.Sprintf("cp /usr/local/bin/op %s", binVolumeMountPath)},
@@ -289,7 +295,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	}
 }
 
-// create mutation patch for resoures
+// create mutation patch for resources
 func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []patchOperation) ([]byte, error) {
 
 	annotations := map[string]string{injectionStatus: "injected"}
@@ -300,97 +306,51 @@ func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []pa
 	return json.Marshal(patch)
 }
 
-func createOPConnectPatch(container *corev1.Container, containerIndex int, config *Config) []patchOperation {
-	var patch []patchOperation
-	envs := []corev1.EnvVar{}
-
-	if config.Connect != nil {
-		// if Connect configuration is already set in the container do not overwrite it
-		hostConfig, tokenConfig := isConnectConfigurationSet(container)
-
-		if !hostConfig {
-			connectHostEnvVar := corev1.EnvVar{
-				Name:  "OP_CONNECT_HOST",
-				Value: config.Connect.Host,
-			}
-			envs = append(envs, connectHostEnvVar)
+func isEnvVarSetup(envVarName string) func(c *corev1.Container) bool {
+	return func(container *corev1.Container) bool {
+		envVar := findContainerEnvVarByName(envVarName, container)
+		if envVar == nil {
+			glog.Infof("%s not provided", envVarName)
 		}
-
-		if !tokenConfig {
-			connectTokenEnvVar := corev1.EnvVar{
-				Name: "OP_CONNECT_TOKEN",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						Key: config.Connect.TokenKey,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: config.Connect.SecretName,
-						},
-					},
-				},
-			}
-			envs = append(envs, connectTokenEnvVar)
-		}
+		return envVar != nil
 	}
-
-	if config.ServiceAccount != nil {
-		// if Service Account configuration is already set in the container do not overwrite it
-		serviceAccountConfig := isServiceAccountConfigurationSet(container)
-
-		if !serviceAccountConfig {
-			serviceAccountTokenEnvVar := corev1.EnvVar{
-				Name: "OP_SERVICE_ACCOUNT_TOKEN",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						Key: config.ServiceAccount.TokenKey,
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: config.ServiceAccount.SecretName,
-						},
-					},
-				},
-			}
-			envs = append(envs, serviceAccountTokenEnvVar)
-		}
-	}
-
-	patch = append(patch, setEnvironment(*container, containerIndex, envs, "/spec/containers")...)
-
-	return patch
 }
 
-func isConnectConfigurationSet(container *corev1.Container) (bool, bool) {
+func isConnectHostEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(connectHostEnv)(container)
+}
 
-	hostConfig := false
-	tokenConfig := false
+func isConnectTokenEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(connectTokenEnv)(container)
+}
 
-	for _, env := range container.Env {
-		if env.Name == connectHostEnv {
-			hostConfig = true
-		}
+func isServiceAccountEnvVarSetup(container *corev1.Container) bool {
+	return isEnvVarSetup(serviceAccountTokenEnv)(container)
+}
 
-		if env.Name == connectTokenEnv {
-			tokenConfig = true
-		}
+func findContainerEnvVarByName(envName string, container *corev1.Container) *corev1.EnvVar {
+	var envVar *corev1.EnvVar
 
-		if tokenConfig && hostConfig {
+	for _, containerEnvVar := range container.Env {
+		if containerEnvVar.Name == envName {
+			envVar = &containerEnvVar
 			break
 		}
 	}
-	return hostConfig, tokenConfig
+
+	return envVar
 }
 
-func isServiceAccountConfigurationSet(container *corev1.Container) bool {
-	serviceAccountConfig := false
-
-	for _, env := range container.Env {
-		if env.Name == connectHostEnv {
-			serviceAccountConfig = true
-		}
-
-		if serviceAccountConfig {
-			break
-		}
+func checkOPCLIEnvSetup(container *corev1.Container) {
+	isConnectSetup := isConnectTokenEnvVarSetup(container) && isConnectHostEnvVarSetup(container)
+	isServiceAccountSetup := isServiceAccountEnvVarSetup(container)
+	if isConnectSetup {
+		glog.Info("OP CLI will be used with Connect")
+	} else if !isConnectSetup && isServiceAccountSetup {
+		glog.Info("OP CLI will be used with Service Account")
+	} else {
+		glog.Info("No credentials provided to authenticate OP CLI")
 	}
-	return serviceAccountConfig
 }
 
 func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
@@ -405,31 +365,15 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 		},
 		{
 			Name:  "OP_INTEGRATION_BUILDNUMBER",
-			Value: makeBuildVersion(version.Version),
+			Value: utils.MakeBuildVersion(version.Version),
 		},
 	}
 
 	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
 }
 
-func makeBuildVersion(version string) string {
-	parts := strings.Split(strings.ReplaceAll(version, "-beta", ""), ".")
-	buildVersion := parts[0]
-	for i := 1; i < len(parts); i++ {
-		if len(parts[i]) == 1 {
-			buildVersion += "0" + parts[i]
-		} else {
-			buildVersion += parts[i]
-		}
-	}
-	if len(parts) != 3 {
-		return buildVersion
-	}
-	return buildVersion + "01"
-}
-
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(_ context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
 		return container, false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
@@ -456,8 +400,7 @@ func (s *SecretInjector) mutateContainer(_ context.Context, container *corev1.Co
 		Value: container.Command,
 	})
 
-	//creating patch for adding connect environment variables to container. If they are already set in the container then this will be skipped
-	patch = append(patch, createOPConnectPatch(container, containerIndex, &s.Config)...)
+	checkOPCLIEnvSetup(container)
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
@@ -489,7 +432,7 @@ func setEnvironment(container corev1.Container, containerIndex int, addedEnv []c
 func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
@@ -538,7 +481,8 @@ func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
-	glog.Infof("Ready to write reponse ...")
+	glog.Infof("Ready to write response ...")
+
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)

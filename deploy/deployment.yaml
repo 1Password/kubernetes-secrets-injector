@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: op-injector-pod
+  name: secrets-injector
   labels:
-    app: op-injector
+    app: secrets-injector
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: op-injector
+      app: secrets-injector
   template:
     metadata:
       labels:
-        app: op-injector
+        app: secrets-injector
     spec:
-      serviceAccountName: op-injector
+      serviceAccountName: secrets-injector
       containers:
-        - name: op-injector
-          image: 1password/op-injector:latest
+        - name: secrets-injector
+          image: 1password/kubernetes-secrets-injector:latest
           imagePullPolicy: Never
           args:
-          - -service-name=op-injector-svc
+          - -service-name=secrets-injector
           - -alsologtostderr
           - -v=4
           - 2>&1
@@ -29,16 +29,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: OP_CONNECT_HOST
-            value: http://onepassword-connect:8080/
-          - name: OP_CONNECT_TOKEN_NAME
-            value: onepassword-token
-          - name: OP_CONNECT_TOKEN_KEY
-            value: token
-          - name: OP_SERVICE_ACCOUNT_SECRET_NAME
-            value: service-account
-          - name: OP_SERVICE_ACCOUNT_TOKEN_KEY
-            value: token
           lifecycle:
             preStop:
               exec:

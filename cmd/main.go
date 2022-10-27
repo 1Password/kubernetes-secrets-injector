@@ -24,6 +24,8 @@ func init() {
 }
 
 func main() {
+	webhook.InitK8sClient()
+
 	var parameters webhook.SecretInjectorParameters
 
 	glog.Info("Starting webhook")
@@ -54,14 +56,13 @@ func main() {
 	}
 
 	// create or update the mutatingwebhookconfiguration
-	err = createOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
+	err = webhook.CreateOrUpdateMutatingWebhookConfiguration(caPEM, webhookServiceName, webhookNamespace)
 	if err != nil {
 		glog.Errorf("Failed to create or update the mutating webhook configuration: %v", err)
 		os.Exit(1)
 	}
 
 	secretInjector := &webhook.SecretInjector{
-		Config: webhook.CreateWebhookConfig(),
 		Server: &http.Server{
 			Addr:      fmt.Sprintf(":%v", parameters.Port),
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
@@ -73,7 +74,7 @@ func main() {
 	mux.HandleFunc("/inject", secretInjector.Serve)
 	secretInjector.Server.Handler = mux
 
-	// start webhook server in new rountine
+	// start webhook server in new routine
 	go func() {
 		if err := secretInjector.Server.ListenAndServeTLS("", ""); err != nil {
 			glog.Errorf("Failed to listen and serve webhook server: %v", err)
