@@ -4,8 +4,6 @@ The 1Password Secrets Injector implements a mutating webhook to inject 1Password
 
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
-- [Use with 1Password Connect](#use-with-1password-connect)
-- [Provide 1Password CLI credentials on your app pod/deployment](#provide-1password-cli-credentials-on-your-app-poddeployment)
 - [Troubleshooting](#troubleshooting)
 
 ## Usage
