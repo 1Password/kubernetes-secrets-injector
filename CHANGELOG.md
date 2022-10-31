@@ -20,8 +20,8 @@ Initial 1Password Kubernetes Secrets Injector release
 
 ## Features
 
-- Fetches 1password items and injects into the pods as env variables.
-- Webhook works with multiple configurations (i.e. configuring the CLI to work with either Connect or Service Account credentials).
+- Fetches secrets from 1Password and injects them into the pods as environment variables.
+- Webhook works with multiple configurations (i.e. different Connect hosts and tokens).
 - Simple deployment process (`make deploy`).
 
 ---
