@@ -90,6 +90,9 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
+	err = secretInjector.Server.Shutdown(context.Background())
+	if err != nil {
+		glog.Errorf("Error shutting down webhook server gracefully: %v", err)
+	}
 	glog.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
-	secretInjector.Server.Shutdown(context.Background())
 }
