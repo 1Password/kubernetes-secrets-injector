@@ -215,7 +215,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		if !mutate {
 			continue
 		}
-		c, didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
@@ -225,7 +225,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		}
 		if didMutate {
 			mutated = true
-			pod.Spec.InitContainers[i] = *c
+			pod.Spec.InitContainers[i] = c
 		}
 		patch = append(patch, initContainerPatch...)
 	}
@@ -236,7 +236,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 			continue
 		}
 
-		c, didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -248,7 +248,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		patch = append(patch, containerPatch...)
 		if didMutate {
 			mutated = true
-			pod.Spec.Containers[i] = *c
+			pod.Spec.Containers[i] = c
 		}
 	}
 
@@ -370,10 +370,10 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
-		return container, false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
+		return false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
 	}
 
 	// Prepend the command with op run --
@@ -401,7 +401,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
-	return container, true, patch, nil
+	return true, patch, nil
 }
 
 func setEnvironment(container corev1.Container, containerIndex int, addedEnv []corev1.EnvVar, basePath string) (patch []patchOperation) {
