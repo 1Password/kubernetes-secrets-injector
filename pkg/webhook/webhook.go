@@ -21,7 +21,7 @@ import (
 const (
 	connectHostEnv  = "OP_CONNECT_HOST"
 	connectTokenEnv = "OP_CONNECT_TOKEN"
-
+	// #nosec G101
 	serviceAccountTokenEnv = "OP_SERVICE_ACCOUNT_TOKEN"
 
 	// binVolumeName is the name of the volume where the OP CLI binary is stored.
