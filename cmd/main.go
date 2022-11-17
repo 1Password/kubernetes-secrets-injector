@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/1password/kubernetes-secrets-injector/pkg/webhook"
 	"github.com/golang/glog"
@@ -69,6 +70,7 @@ func main() {
 				Certificates: []tls.Certificate{pair},
 				MinVersion:   tls.VersionTLS13,
 			},
+			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}
 
