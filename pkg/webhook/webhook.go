@@ -329,16 +329,13 @@ func isServiceAccountEnvVarSetup(container *corev1.Container) bool {
 }
 
 func findContainerEnvVarByName(envName string, container *corev1.Container) *corev1.EnvVar {
-	var envVar *corev1.EnvVar
-
 	for _, containerEnvVar := range container.Env {
 		if containerEnvVar.Name == envName {
-			envVar = &containerEnvVar
-			break
+			return &containerEnvVar
 		}
 	}
 
-	return envVar
+	return nil
 }
 
 func checkOPCLIEnvSetup(container *corev1.Container) {
