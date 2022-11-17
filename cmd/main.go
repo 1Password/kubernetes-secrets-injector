@@ -64,8 +64,11 @@ func main() {
 
 	secretInjector := &webhook.SecretInjector{
 		Server: &http.Server{
-			Addr:      fmt.Sprintf(":%v", parameters.Port),
-			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
+			Addr: fmt.Sprintf(":%v", parameters.Port),
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{pair},
+				MinVersion:   tls.VersionTLS13,
+			},
 		},
 	}
 
