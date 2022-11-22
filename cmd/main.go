@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/1password/kubernetes-secrets-injector/pkg/webhook"
 	"github.com/golang/glog"
@@ -64,8 +65,12 @@ func main() {
 
 	secretInjector := &webhook.SecretInjector{
 		Server: &http.Server{
-			Addr:      fmt.Sprintf(":%v", parameters.Port),
-			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
+			Addr: fmt.Sprintf(":%v", parameters.Port),
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{pair},
+				MinVersion:   tls.VersionTLS13,
+			},
+			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}
 
@@ -87,6 +92,9 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
+	err = secretInjector.Server.Shutdown(context.Background())
+	if err != nil {
+		glog.Errorf("Error shutting down webhook server gracefully: %v", err)
+	}
 	glog.Infof("Got OS shutdown signal, shutting down webhook server gracefully...")
-	secretInjector.Server.Shutdown(context.Background())
 }
