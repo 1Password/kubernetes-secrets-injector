@@ -12,14 +12,16 @@
 
 ---
 
-[//]: # "START/v0.1.0"
+[//]: # "START/v1.0.0"
 
-# v0.1.0
+# v1.0.0
 
-Initial 1Password Kubernetes Secret Injector release
+Initial 1Password Kubernetes Secrets Injector release
 
 ## Features
 
-- Fetches 1password items and injects into the pods as env variables.
+- Fetch secrets from 1Password and inject them into the pods as environment variables.
+- Webhook works with multiple configurations (i.e. different Connect hosts and tokens).
+- Provide a simple deployment process (`make deploy`).
 
 ---
