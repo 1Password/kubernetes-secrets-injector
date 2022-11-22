@@ -210,12 +210,13 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	mutated := false
 
 	var patch []patchOperation
-	for i, c := range pod.Spec.InitContainers {
+	for i := range pod.Spec.InitContainers {
+		c := pod.Spec.InitContainers[i]
 		_, mutate := containers[c.Name]
 		if !mutate {
 			continue
 		}
-		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &pod.Spec.InitContainers[i], i)
+		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
@@ -225,18 +226,18 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		}
 		if didMutate {
 			mutated = true
-			pod.Spec.InitContainers[i] = c
 		}
 		patch = append(patch, initContainerPatch...)
 	}
 
-	for i, c := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
+		c := pod.Spec.Containers[i]
 		_, mutate := containers[c.Name]
 		if !mutate {
 			continue
 		}
 
-		didMutate, containerPatch, err := s.mutateContainer(ctx, &pod.Spec.Containers[i], i)
+		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -248,7 +249,6 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		patch = append(patch, containerPatch...)
 		if didMutate {
 			mutated = true
-			pod.Spec.Containers[i] = c
 		}
 	}
 
