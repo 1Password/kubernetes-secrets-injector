@@ -21,7 +21,7 @@ import (
 const (
 	connectHostEnv  = "OP_CONNECT_HOST"
 	connectTokenEnv = "OP_CONNECT_TOKEN"
-
+	// #nosec G101
 	serviceAccountTokenEnv = "OP_SERVICE_ACCOUNT_TOKEN"
 
 	// binVolumeName is the name of the volume where the OP CLI binary is stored.
@@ -210,12 +210,13 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	mutated := false
 
 	var patch []patchOperation
-	for i, c := range pod.Spec.InitContainers {
+	for i := range pod.Spec.InitContainers {
+		c := pod.Spec.InitContainers[i]
 		_, mutate := containers[c.Name]
 		if !mutate {
 			continue
 		}
-		c, didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
@@ -225,18 +226,18 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		}
 		if didMutate {
 			mutated = true
-			pod.Spec.InitContainers[i] = *c
 		}
 		patch = append(patch, initContainerPatch...)
 	}
 
-	for i, c := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
+		c := pod.Spec.Containers[i]
 		_, mutate := containers[c.Name]
 		if !mutate {
 			continue
 		}
 
-		c, didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -248,7 +249,6 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		patch = append(patch, containerPatch...)
 		if didMutate {
 			mutated = true
-			pod.Spec.Containers[i] = *c
 		}
 	}
 
@@ -329,16 +329,13 @@ func isServiceAccountEnvVarSetup(container *corev1.Container) bool {
 }
 
 func findContainerEnvVarByName(envName string, container *corev1.Container) *corev1.EnvVar {
-	var envVar *corev1.EnvVar
-
 	for _, containerEnvVar := range container.Env {
 		if containerEnvVar.Name == envName {
-			envVar = &containerEnvVar
-			break
+			return &containerEnvVar
 		}
 	}
 
-	return envVar
+	return nil
 }
 
 func checkOPCLIEnvSetup(container *corev1.Container) {
@@ -373,10 +370,10 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (*corev1.Container, bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
-		return container, false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
+		return false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
 	}
 
 	// Prepend the command with op run --
@@ -404,7 +401,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 
 	//creating patch for passing User-Agent information to the CLI.
 	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
-	return container, true, patch, nil
+	return true, patch, nil
 }
 
 func setEnvironment(container corev1.Container, containerIndex int, addedEnv []corev1.EnvVar, basePath string) (patch []patchOperation) {
