@@ -1,10 +1,13 @@
 # 1Password Secrets Injector for Kubernetes
 
-The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a pod or deployment. Unlike the 1Password Kubernetes Operator, the Secrets Injector does not create a Kubernetes Secret when assigning secrets to your resource.
+The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a Kubernetes pod or deployment. Unlike the 1Password Kubernetes Operator, the Secrets Injector doesn't create a Kubernetes Secret when assigning secrets to your resource.
+
+The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items.
 
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
 - [Troubleshooting](#troubleshooting)
+- [Security](#security)
 
 ## Usage
 ```
@@ -52,74 +55,60 @@ spec:
 ```
 
 ## Setup and Deployment
-The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items.
 
 ### Prerequisites:
 - [docker installed](https://docs.docker.com/get-docker/)
 - [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [1Password Connect deployed to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
 
-Follow the [Use with 1Password Connect guide](#use-with-1password-connect) if you want to go with 1Password Connect.
+### Step 1: Create a Kubernetes secret containing `OP_CONNECT_TOKEN`
 
-### 1. Setup and deploy 1Password Connect
-
-You should deploy 1Password Connect to your infrastructure in order to retrieve items from 1Password.
-
-- [setup 1Password Connect server](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow)
-- [deploy 1Password Connect to Kubernetes](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server)
-
-### 2. Add the label `secrets-injection=enabled` label to the namespace:
-```
-kubectl label namespace default secrets-injection=enabled
-```
-
-### 3. Create kubernetes secret containing `OP_CONNECT_TOKEN`
-```
+```shell
 kubectl create secret generic connect-token --from-literal=token=YOUR_OP_CONNECT_TOKEN
 ```
 
-### 4.Deploy injector
+### Step 2: Add the `secrets-injection=enabled` label to the namespace
+
+```shell
+kubectl label namespace default secrets-injection=enabled
 ```
+
+### Step 3: Deploy the injector
+
+```shell
 make deploy
 ```
-**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). Also, the injector will delete the certificate when the injector is removed from the cluster.
+**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). When the injector is removed from the cluster, it will delete the certificate.
 
 
-### 5. Annotate your client pod/deployment with `inject` annotation
-Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
-```
+### Step 4: Annotate your client pod/deployment with `inject` annotation
+
+Annotate your client pod/deployment specification with `operator.1password.io/inject`. It expects a comma-separated list of the containers that you want to mutate and inject secrets into.
+
+```yaml
 # client-deployment.yaml
 annotations:
   operator.1password.io/inject: "app-example1"
 ```
 
-### 6. Configure resource's environment
-Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
-```
+### Step 5: Configure the resource's environment
+
+Add an environment variable to the resource with a value referencing your 1Password item using secrets reference syntax: `op://<vault>/<item>[/section]/<field>`.
+
+```yaml
 env:
   - name: DB_USERNAME
     value: op://my-vault/my-item/sql/username
 ```
 
-### 7. Provide 1Password CLI credentials on your app pod/deployment
-You can do that in the different ways:
+### Step 6: Provide 1Password CLI credentials on your pod/deployment
 
-1. Directly set env variables `OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`
-```
-- env:
-  - name: OP_CONNECT_HOST
-    value: http://onepassword-connect:8080
-  - name: OP_CONNECT_TOKEN
-    value: abcd...abcd
-  - name: DB_USERNAME
-    value: op://my-vault/my-item/sql/username
-```
-2. As the reference to the secret
-```
-kubectl create secret generic connect-token --from-literal=token=YOUR_TOKEN
-
+You can provide your pod or deployment with 1Password CLI credentials by [creating Kubernetes Secrets](#step-1--create-a-kubernetes-secret-containing-opconnecttoken) and referring to them in your deployment configuration.
+```yaml
 # your-app-pod/deployment.yaml
 env:
-  # OP_CONNECT_HOST default value is 'http://onepassword-connect:8080'
+  - name: OP_CONNECT_HOST
+    value: http://onepassword-connect:8080
   - name: OP_CONNECT_TOKEN
     valueFrom:
       secretKeyRef:
@@ -129,10 +118,17 @@ env:
     value: op://my-vault/my-item/sql/username
 ```
 
-
 ## Troubleshooting
-If you are trouble getting secrets injected in your pod, check the following:
 
-1. Check that the namespace of your pod has the `secrets-injection=enabled` label
-2. Ensure that the 1Password Secret Injector webhook is running (`secrets-injector` by default).
-3. Check that your container has a `command` field specifying the command to run the app in your container
+If you can't inject secrets in your pod, make sure:
+- The namespace of your pod has the `secrets-injection=enabled` label
+- The 1Password Secret Injector webhook is running (`secrets-injector` by default).
+- Your container has a `command` field specifying the command to run the app in your container
+
+## Security
+
+1Password requests you practice responsible disclosure if you discover a vulnerability.
+
+Please file requests through [**BugCrowd**](https://bugcrowd.com/agilebits)
+
+For information about our security practices, please visit our [Security homepage](https://1password.com/security/).
