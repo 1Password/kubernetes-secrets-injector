@@ -1,8 +1,10 @@
 # 1Password Secrets Injector for Kubernetes
 
-The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a Kubernetes pod or deployment. Unlike the 1Password Kubernetes Operator, the Secrets Injector doesn't create a Kubernetes Secret when assigning secrets to your resource.
+The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a Kubernetes pod or deployment. Unlike the [1Password Kubernetes Operator](https://github.com/1Password/onepassword-operator), the Secrets Injector doesn't create a Kubernetes Secret when assigning secrets to your resource.
 
 The 1Password Secrets Injector for Kubernetes uses 1Password Connect to retrieve items.
+
+Read more on the [1Password Developer Portal](https://developer.1password.com/connect/k8s-injector).
 
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
