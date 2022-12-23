@@ -33,6 +33,10 @@ spec:
       containers:
         - name: app-example1
           image: my-image
+          ports:
+            - containerPort: 5000
+          command: ["npm"]
+          args: ["start"]
           # This app will have the secrets injected using Connect.
           env:
           - name: OP_CONNECT_HOST
@@ -47,14 +51,22 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 
-        - name: my-app //because my-app is not listed in the inject annotation above this container will not be injected with secrets
+        - name: my-app #because my-app is not listed in the inject annotation above this container will not be injected with secrets
           image: my-image
+          ports:
+            - containerPort: 5000
+          command: ["npm"]
+          args: ["start"]
           env:
           - name: DB_USERNAME
             value: op://my-vault/my-item/sql/username
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 ```
+**Note**: injected secrets are available in the current pod's session only.
+
+In the example above the `app-example1` container will have injected `DB_USERNAME` and `DB_PASSWORD` values.
+But if you try to access them in a new session (for example using `kubectl exec`) it would return 1password item path (aka `op://my-vault/my-item/sql/password`).
 
 ## Setup and Deployment
 
