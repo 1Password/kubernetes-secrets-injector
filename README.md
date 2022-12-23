@@ -63,7 +63,7 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 ```
-**Note**: injected secrets are available in the current pod's session only.
+**Note**: injected secrets are available *only* in the current pod's session.
 
 In the example above the `app-example1` container will have injected `DB_USERNAME` and `DB_PASSWORD` values.
 But if you try to access them in a new session (for example using `kubectl exec`) it would return 1password item path (aka `op://my-vault/my-item/sql/password`).
