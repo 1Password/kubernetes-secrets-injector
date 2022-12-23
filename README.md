@@ -64,16 +64,12 @@ spec:
             value: op://my-vault/my-item/sql/password
 ```
 
-{% note %}
-
 **Note:** Injected secrets are available *only* in the current pod's session.
 
-**Note:** In the example above the `app-example1` container will have injected the `DB_USERNAME` and `DB_PASSWORD` values in the session executed by the command `npm start`.
-**Note:** If you want to access them in a new session (for example using `kubectl exec`) you should append `op run --` to the command executed in the container's new session.
+In the example above the `app-example1` container will have injected the `DB_USERNAME` and `DB_PASSWORD` values in the session executed by the command `npm start`.
+If you want to access them in a new session (for example using `kubectl exec`) you should append `op run --` to the command executed in the container's new session.
 
-**Note:** Another alternative to have the secrets available in all container's sessions is by using the [1Password Kubernetes Operator](https://github.com/1password/onepassword-operator).
-
-{% endnote %}
+Another alternative to have the secrets available in all container's sessions is by using the [1Password Kubernetes Operator](https://github.com/1password/onepassword-operator).
 
 ## Setup and Deployment
 
