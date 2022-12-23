@@ -51,7 +51,7 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 
-        - name: my-app #because my-app is not listed in the inject annotation above this container will not be injected with secrets
+        - name: my-app # because my-app is not listed in the inject annotation above this container will not be injected with secrets
           image: my-image
           ports:
             - containerPort: 5000
