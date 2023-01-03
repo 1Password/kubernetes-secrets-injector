@@ -33,6 +33,10 @@ spec:
       containers:
         - name: app-example1
           image: my-image
+          ports:
+            - containerPort: 5000
+          command: ["npm"]
+          args: ["start"]
           # This app will have the secrets injected using Connect.
           env:
           - name: OP_CONNECT_HOST
@@ -47,14 +51,25 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 
-        - name: my-app //because my-app is not listed in the inject annotation above this container will not be injected with secrets
+        - name: my-app # because my-app is not listed in the inject annotation above this container will not be injected with secrets
           image: my-image
+          ports:
+            - containerPort: 5000
+          command: ["npm"]
+          args: ["start"]
           env:
           - name: DB_USERNAME
             value: op://my-vault/my-item/sql/username
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 ```
+
+**Note:** Injected secrets are available *only* in the current pod's session.
+
+In the example above the `app-example1` container will have injected the `DB_USERNAME` and `DB_PASSWORD` values in the session executed by the command `npm start`.
+If you want to access them in a new session (for example using `kubectl exec`) you should append `op run --` to the command executed in the container's new session.
+
+Another alternative to have the secrets available in all container's sessions is by using the [1Password Kubernetes Operator](https://github.com/1password/onepassword-operator).
 
 ## Setup and Deployment
 
