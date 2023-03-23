@@ -386,7 +386,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 	patch = append(patch, patchOperation{
 		Op:    "add",
 		Path:  path,
-		Value: []corev1.VolumeMount{binVolumeMount},
+		Value: append(container.VolumeMounts, binVolumeMount),
 	})
 
 	// replacing the container command with a command prepended with op run
