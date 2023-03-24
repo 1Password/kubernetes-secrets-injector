@@ -18,7 +18,7 @@
 # v1.0.1
 
 ## Fixes
-* Make Injector to not overwrite pod MountVolumes. {#22}
+* Injector no longer overwrites pod `volumeMounts`. {#22}
 
 ---
 
