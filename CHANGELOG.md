@@ -10,6 +10,16 @@
 ## Security
  * A user-friendly description of a security fix. {issue-number}
 
+
+---
+
+[//]: # "START/v1.0.1"
+
+# v1.0.1
+
+## Fixes
+* Injector no longer overwrites pod `volumeMounts`. {#22}
+
 ---
 
 [//]: # "START/v1.0.0"
