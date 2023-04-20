@@ -142,7 +142,7 @@ If you want to go with 1Password Connect, you'll need to:
 
 Then, follow the [Use with 1Password Connect guide](#use-with-1password-connect).
 
-If you want to go with 1Password Service Accounts<sup>BETA</sup>, you'll need to:
+If you want to go with 1Password Service Accounts <sup>BETA</sup>, you'll need to:
 - [Create a service account.](https://developer.1password.com//docs/service-accounts/)
 
 Then, follow the [Use with Service Account guide](#use-with-1password-service-accounts-supbetasup).
@@ -277,4 +277,4 @@ If you can't inject secrets in your pod, make sure:
 
 Please file requests through [**BugCrowd**](https://bugcrowd.com/agilebits)
 
-For information about our security practices, please visit our [Security homepage](https://1password.com/security/).
+For information about our security practices, please visit the [1Password Security homepage](https://1password.com/security/).
