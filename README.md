@@ -2,7 +2,7 @@
 
 The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a Kubernetes pod or deployment. Unlike the [1Password Kubernetes Operator](https://github.com/1Password/onepassword-operator), the Secrets Injector doesn't create a Kubernetes Secret when assigning secrets to your resource.
 
-The 1Password Secrets Injector for Kubernetes can use [1Password Connect](https://developer.1password.com/docs/connect) or [1Password Service Accounts](https://developer.1password.com/docs/service-accounts) to retrieve items.
+The 1Password Secrets Injector for Kubernetes can use [1Password Connect](https://developer.1password.com/docs/connect) or [1Password Service Accounts <sup>BETA</sup>](https://developer.1password.com/docs/service-accounts) to retrieve items.
 
 Read more on the [1Password Developer Portal](https://developer.1password.com/connect/k8s-injector).
 
@@ -16,7 +16,7 @@ Read more on the [1Password Developer Portal](https://developer.1password.com/co
 ## Usage
 
 ```yaml
-# client-deployment.yaml - you client deployment/pod where you want to inject secrets
+# client-deployment.yaml - The client deployment/pod where you want to inject secrets
 
 apiVersion: apps/v1
 kind: Deployment
@@ -40,7 +40,7 @@ spec:
             - containerPort: 5000
           command: ["npm"]
           args: ["start"]
-          # This app will have the secrets injected using Connect.
+          # A 1Password Connect server (currently in beta) will inject secrets into this application.
           env:
           - name: OP_CONNECT_HOST
             value: http://onepassword-connect:8080
@@ -54,7 +54,7 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 
-        - name: my-app # because my-app is not listed in the inject annotation above this container will not be injected with secrets
+        - name: my-app # my-app isn't listed in the inject annotation above, so secrets won't be injected into this container.
           image: my-image
           ports:
             - containerPort: 5000
@@ -71,7 +71,7 @@ spec:
 <summary>Usage with 1Password Service Accounts <sup>BETA</sup></summary>
 
 ```yaml
-# client-deployment.yaml - you client deployment/pod where you want to inject secrets
+# client-deployment.yaml - The client deployment/pod where you want to inject secrets
 
 apiVersion: apps/v1
 kind: Deployment
@@ -96,7 +96,7 @@ spec:
             - containerPort: 5000
           command: ["npm"]
           args: ["start"]
-          # This app will have the secrets injected using Service Accounts (currently in beta).
+          # A 1Password Service Account (currently in beta) will inject secrets into this application.
           env:
           - name: OP_SERVICE_ACCOUNT_TOKEN
             valueFrom:
@@ -108,7 +108,7 @@ spec:
           - name: DB_PASSWORD
             value: op://my-vault/my-item/sql/password
 
-        - name: my-app # because my-app is not listed in the inject annotation above this container will not be injected with secrets
+        - name: my-app # my-app isn't listed in the inject annotation above, so secrets won't be injected into this container.
           image: my-image
           ports:
             - containerPort: 5000
@@ -136,16 +136,16 @@ Another alternative to have the secrets available in all container's sessions is
 - [docker installed](https://docs.docker.com/get-docker/)
 - [kubectl installed](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
-If you want to go with 1Password Connect, you'll need to:
+If you want to use 1Password Connect:
 - [Set up a Secrets Automation workflow](https://developer.1password.com/docs/connect/get-started#step-1-set-up-a-secrets-automation-workflow).
 - [Deploy 1Password Connect](https://developer.1password.com/docs/connect/get-started#step-2-deploy-1password-connect-server) in your Kubernetes infrastructure.
 
-Then, follow the [Use with 1Password Connect guide](#use-with-1password-connect).
+Then, follow instructions to [use the Kubernetes Injector](#use-with-1password-connect).
 
-If you want to go with 1Password Service Accounts <sup>BETA</sup>, you'll need to:
+If you want to use 1Password Service Accounts <sup>BETA</sup>:
 - [Create a service account.](https://developer.1password.com//docs/service-accounts/)
 
-Then, follow the [Use with Service Account guide](#use-with-1password-service-accounts-supbetasup).
+Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts-supbetasup).
 
 ## Use with 1Password Connect
 
@@ -169,10 +169,9 @@ make deploy
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). When the injector is removed from the cluster, it will delete the certificate.
 
 
-### Step 4: Annotate your client pod/deployment with `inject` annotation
+### Step 4: Annotate your client pod or deployment with `inject` annotation
 
-Annotate your client pod/deployment specification with `operator.1password.io/inject`. It expects a comma-separated list of the containers that you want to mutate and inject secrets into.
-
+Annotate your client pod or deployment spec with `operator.1password.io/inject`. It expects a comma separated list of the names of the containers that will be mutated and have secrets injected.
 ```yaml
 # client-deployment.yaml
 annotations:
@@ -181,7 +180,7 @@ annotations:
 
 ### Step 5: Configure the resource's environment
 
-Add an environment variable to the resource with a value referencing your 1Password item using secrets reference syntax: `op://<vault>/<item>[/section]/<field>`.
+Add an environment variable to the resource with a value referencing your 1Password item. Use the following secret reference syntax: `op://<vault>/<item>[/section]/<field>`.
 
 ```yaml
 env:
@@ -225,7 +224,7 @@ make deploy
 **NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). When the injector is removed from the cluster, it will delete the certificate.
 
 ### Step 4: Annotate your client pod or deployment with `inject` annotation
-Annotate your client pod/deployment spec with `operator.1password.io/inject` which expects a comma separated list of the names of the containers to that will be mutated and have secrets injected.
+Annotate your client pod or deployment spec with `operator.1password.io/inject`. It expects a comma separated list of the names of the containers that will be mutated and have secrets injected.
 ```yaml
 # client-deployment.yaml
 annotations:
@@ -233,7 +232,7 @@ annotations:
 ```
 
 ### Step 5: Annotate your client pod or deployment with `version` annotation
-Annotate your client pod/deployment with the latest 1Password CLI beta version (`2.16.0-beta.01` or later).
+Annotate your client pod or deployment with the latest 1Password CLI beta version (`2.16.0-beta.01` or later).
 ```yaml
 # client-deployment.yaml
 annotations:
@@ -241,7 +240,7 @@ annotations:
 ```
 
 ### Step 6: Configure the resource's environment
-Add an environment variable to the resource with a value referencing your 1Password item in the format `op://<vault>/<item>[/section]/<field>`.
+Add an environment variable to the resource with a value referencing your 1Password item. Use the following secret reference syntax: `op://<vault>/<item>[/section]/<field>`.
 ```yaml
 # client-deployment.yaml
 env:
