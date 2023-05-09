@@ -40,7 +40,7 @@ spec:
             - containerPort: 5000
           command: ["npm"]
           args: ["start"]
-          # A 1Password Connect server (currently in beta) will inject secrets into this application.
+          # A 1Password Connect server will inject secrets into this application.
           env:
           - name: OP_CONNECT_HOST
             value: http://onepassword-connect:8080
