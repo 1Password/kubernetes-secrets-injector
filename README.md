@@ -9,7 +9,7 @@ Read more on the [1Password Developer Portal](https://developer.1password.com/co
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
 - [Use with 1Password Connect](#use-with-1password-connect)
-- [Use with 1Password Service Accounts](#use-with-1password-service-accounts-supbetasup)
+- [Use with 1Password Service Accounts](#use-with-1password-service-accounts)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
@@ -145,7 +145,7 @@ Then, follow instructions to [use the Kubernetes Injector](#use-with-1password-c
 If you want to use 1Password Service Accounts:
 - [Create a service account.](https://developer.1password.com//docs/service-accounts/)
 
-Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts-supbetasup).
+Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts).
 
 ## Use with 1Password Connect
 
