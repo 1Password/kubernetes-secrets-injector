@@ -9,7 +9,7 @@ Read more on the [1Password Developer Portal](https://developer.1password.com/co
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
 - [Use with 1Password Connect](#use-with-1password-connect)
-- [Use with 1Password Service Account](#use-with-1password-service-accounts-supbetasup)
+- [Use with 1Password Service Accounts](#use-with-1password-service-accounts-supbetasup)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
