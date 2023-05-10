@@ -232,7 +232,7 @@ annotations:
 ```
 
 ### Step 5: Annotate your client pod or deployment with `version` annotation
-Annotate your client pod or deployment with the latest version of the 1Password CLI.
+Annotate your client pod or deployment with the latest version of the 1Password CLI (`2.18.0` or later).
 ```yaml
 # client-deployment.yaml
 annotations:
