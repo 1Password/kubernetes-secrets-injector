@@ -2,14 +2,14 @@
 
 The 1Password Secrets Injector implements a mutating webhook to inject 1Password secrets as environment variables into a Kubernetes pod or deployment. Unlike the [1Password Kubernetes Operator](https://github.com/1Password/onepassword-operator), the Secrets Injector doesn't create a Kubernetes Secret when assigning secrets to your resource.
 
-The 1Password Secrets Injector for Kubernetes can use [1Password Connect](https://developer.1password.com/docs/connect) or [1Password Service Accounts <sup>BETA</sup>](https://developer.1password.com/docs/service-accounts) to retrieve items.
+The 1Password Secrets Injector for Kubernetes can use [1Password Connect](https://developer.1password.com/docs/connect) or [1Password Service Accounts](https://developer.1password.com/docs/service-accounts) to retrieve items.
 
 Read more on the [1Password Developer Portal](https://developer.1password.com/connect/k8s-injector).
 
 - [Usage](#usage)
 - [Setup and deployment](#setup-and-deployment)
 - [Use with 1Password Connect](#use-with-1password-connect)
-- [Use with 1Password Service Account <sup>BETA</sup>](#use-with-1password-service-accounts-supbetasup)
+- [Use with 1Password Service Accounts](#use-with-1password-service-accounts)
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
@@ -40,7 +40,7 @@ spec:
             - containerPort: 5000
           command: ["npm"]
           args: ["start"]
-          # A 1Password Connect server (currently in beta) will inject secrets into this application.
+          # A 1Password Connect server will inject secrets into this application.
           env:
           - name: OP_CONNECT_HOST
             value: http://onepassword-connect:8080
@@ -68,7 +68,7 @@ spec:
 ```
 
 <details>
-<summary>Usage with 1Password Service Accounts <sup>BETA</sup></summary>
+<summary>Usage with 1Password Service Accounts</summary>
 
 ```yaml
 # client-deployment.yaml - The client deployment/pod where you want to inject secrets
@@ -96,7 +96,7 @@ spec:
             - containerPort: 5000
           command: ["npm"]
           args: ["start"]
-          # A 1Password Service Account (currently in beta) will inject secrets into this application.
+          # A 1Password Service Account will inject secrets into this application.
           env:
           - name: OP_SERVICE_ACCOUNT_TOKEN
             valueFrom:
@@ -142,10 +142,10 @@ If you want to use 1Password Connect:
 
 Then, follow instructions to [use the Kubernetes Injector](#use-with-1password-connect).
 
-If you want to use 1Password Service Accounts <sup>BETA</sup>:
+If you want to use 1Password Service Accounts:
 - [Create a service account.](https://developer.1password.com//docs/service-accounts/)
 
-Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts-supbetasup).
+Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts).
 
 ## Use with 1Password Connect
 
@@ -205,7 +205,7 @@ env:
     value: op://my-vault/my-item/sql/username
 ```
 
-## Use with 1Password Service Accounts <sup>BETA</sup>
+## Use with 1Password Service Accounts
 
 ### Step 1: Create a Kubernetes secret containing `OP_SERVICE_ACCOUNT_TOKEN`
 ```
@@ -232,7 +232,7 @@ annotations:
 ```
 
 ### Step 5: Annotate your client pod or deployment with `version` annotation
-Annotate your client pod or deployment with the latest 1Password CLI beta version (`2.16.0-beta.01` or later).
+Annotate your client pod or deployment with the latest version of the 1Password CLI (`2.18.0` or later).
 ```yaml
 # client-deployment.yaml
 annotations:
