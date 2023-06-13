@@ -103,15 +103,16 @@ func CreateOrUpdateMutatingWebhookConfiguration(caPEM *bytes.Buffer, webhookServ
 		return err
 	} else {
 		// there is an existing mutatingWebhookConfiguration
-		if reflect.DeepEqual(foundWebhookConfig, mutatingWebhookConfig) {
+		if !reflect.DeepEqual(foundWebhookConfig, mutatingWebhookConfig) {
 			mutatingWebhookConfig.ObjectMeta.ResourceVersion = foundWebhookConfig.ObjectMeta.ResourceVersion
 			if _, err := mutatingWebhookConfigV1Client.MutatingWebhookConfigurations().Update(context.TODO(), mutatingWebhookConfig, metav1.UpdateOptions{}); err != nil {
 				glog.Warningf("Failed to update the mutatingwebhookconfiguration: %s", webhookConfigName)
 				return err
 			}
 			glog.Infof("Updated the mutatingwebhookconfiguration: %s", webhookConfigName)
+		} else {
+			glog.Infof("The mutatingwebhookconfiguration: %s already exists and has no change", webhookConfigName)
 		}
-		glog.Infof("The mutatingwebhookconfiguration: %s already exists and has no change", webhookConfigName)
 	}
 
 	return nil
