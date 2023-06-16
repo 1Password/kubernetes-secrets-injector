@@ -10,6 +10,18 @@
 ## Security
  * A user-friendly description of a security fix. {issue-number}
 
+---
+
+[//]: # (START/v1.0.2)
+# v1.0.2
+
+## Features
+  * Upgraded Go to version 1.20. {#34}
+  * Upgraded 1Password Connect to version 1.5.1. {#34}
+
+## Fixes
+ * Fixed bug causing the need for the mutatingwebhookconfig object to be deleted every time the application restarts. {#32}
+
 
 ---
 
