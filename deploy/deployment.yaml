@@ -18,7 +18,7 @@ spec:
       containers:
         - name: secrets-injector
           image: 1password/kubernetes-secrets-injector:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           args:
           - -service-name=secrets-injector
           - -alsologtostderr
