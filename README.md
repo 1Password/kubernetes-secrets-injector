@@ -123,7 +123,7 @@ spec:
 
 </details>
 
-To inject secrets, the container you're looking to inject into must have a `command` defined. The 1Password Secrets Injector works by mutating the `command` on init, and as such a command is needed to be mutated. If the deployments you're using are designed to have `command` specified in the deployment, then using the 1Password Kubernetes Operator may be a better fit.
+To inject secrets, the container you're looking to inject into must have a `command` defined. The 1Password Secrets Injector works by mutating the `command` on init, and as such a command is needed to be mutated. If the deployments you're using aren't designed to have `command` specified in the deployment, then using the 1Password Kubernetes Operator may be a better fit.
 
 **Note:** Injected secrets are available *only* in the current pod's session. In other words, the secrets will only be accessible for the command listed in the container specification. To access it in any other session, for example using `kubectl exec`, it's necessary to prepend `op run --` to the command.
 
