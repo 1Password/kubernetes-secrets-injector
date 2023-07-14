@@ -123,7 +123,7 @@ spec:
 
 </details>
 
-To inject secrets, the container you're looking to inject into must have a `command` defined. The 1Password Secrets Injector works by mutating the `command` on init, and as such a command is needed to be mutated. If the deployments you're using aren't designed to have `command` specified in the deployment, then using the 1Password Kubernetes Operator may be a better fit.
+To inject secrets, the Pod you're looking to inject into must have a `command` value defined in its [Deployment or Pod spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#container-v1-core). The 1Password Secrets Injector works by mutating the this value on initilization, and as such a command is needed to be mutated. If the deployments you're using aren't designed to have `command` specified in the deployment, then the 1Password Kubernetes Operator may be a better fit for your use case.
 
 **Note:** Injected secrets are available *only* in the current pod's session. In other words, the secrets will only be accessible for the command listed in the container specification. To access it in any other session, for example using `kubectl exec`, it's necessary to prepend `op run --` to the command.
 
@@ -172,7 +172,7 @@ kubectl label namespace default secrets-injection=enabled
 make deploy
 ```
 
-**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector (`deployment.yaml`). When the injector is removed from the cluster, it will delete the certificate.
+**NOTE:** The injector creates the TLS certificate required for the webhook to work on the fly when deploying the injector ([`deployment.yaml`](/deploy/deployment.yaml)). When the injector is removed from the cluster, it will delete the certificate.
 
 ### Step 4: Annotate your client pod or deployment with `inject` annotation
 
@@ -196,7 +196,7 @@ env:
 
 ### Step 6: Provide 1Password CLI credentials on your pod or deployment
 
-Provide your pod or deployment with 1Password CLI credentials to perform the injection. One possibility to safely provide these secrets is to [create Kubernetes Secrets](#step-1-create-a-kubernetes-secret-containing-opconnecttoken) and referring to them in your deployment configuration.
+Provide your Pod or Deployment with 1Password CLI credentials to perform the injection. One possibility to safely provide these credentials is to [create a Kubernetes Secret](#step-1-create-a-kubernetes-secret-containing-opconnecttoken) and refer to it in your deployment configuration.
 
 ```yaml
 # your-app-pod/deployment.yaml
@@ -267,7 +267,7 @@ env:
 
 ### Step 7: Provide 1Password CLI credentials on your pod or deployment
 
-Provide your pod or deployment with 1Password CLI credentials to perform the injection. One possibility to safely provide these secrets is to [create Kubernetes Secrets](#step-1-create-a-kubernetes-secret-containing-opserviceaccounttoken) and referring to them in your deployment configuration.
+Provide your Pod or Deployment with 1Password CLI credentials to perform the injection. One possibility to safely provide these secrets is to [create a Kubernetes Secret](#step-1-create-a-kubernetes-secret-containing-opserviceaccounttoken) and refer to it in your deployment configuration.
 
 ```yaml
 # client-deployment.yaml
