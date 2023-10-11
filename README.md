@@ -148,7 +148,7 @@ Then, follow instructions to [use the Kubernetes Injector](#use-with-1password-c
 
 If you want to use 1Password Service Accounts:
 
-- [Create a service account.](https://developer.1password.com//docs/service-accounts/)
+- [Create a service account.](https://developer.1password.com/docs/service-accounts/)
 
 Then, follow instructions to [use the Kubernetes Injector with a service account](#use-with-1password-service-accounts).
 
