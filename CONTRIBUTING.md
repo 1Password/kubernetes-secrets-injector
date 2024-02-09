@@ -2,10 +2,6 @@
 
 Thank you for your interest in contributing to the 1Password kubernetes-secrets-injector project 👋! Before you start, please take a moment to read through this guide to understand our contribution process.
 
-## Getting Started
-
-## Testing
-
 ## Sign your commits
 
 To get your PR merged, we require you to sign your commits.
