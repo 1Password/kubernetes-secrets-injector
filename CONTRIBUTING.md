@@ -2,6 +2,42 @@
 
 Thank you for your interest in contributing to the 1Password kubernetes-secrets-injector project 👋! Before you start, please take a moment to read through this guide to understand our contribution process.
 
+## Testing
+
+- For functional testing, run the local version of the injector. From the project root:
+
+  ```
+  # Go to the K8s environment (e.g. minikube)
+  eval $(minikube docker-env)
+
+  # Build the local Docker image for the injector
+  make build/secrets-injector/local
+
+  # Deploy the injector
+  make deploy
+
+  # Remove the injector from K8s
+  make undeploy
+  ```
+
+- Run tests for the operator:
+
+  ```
+  make test
+  ```
+
+## Debugging
+
+- Running `kubectl describe pod` will fetch details about pods. This includes configuration information about the container(s) and Pod (labels, resource requirements, etc) and status information about the container(s) and Pod (state, readiness, restart count, events, etc.).
+- Running `kubectl logs ${POD_NAME} ${CONTAINER_NAME}` will print the logs from the container(s) in a pod. This can help with debugging issues by inspection.
+- Running `kubectl exec ${POD_NAME} -c ${CONTAINER_NAME} -- ${CMD}` allows executing a command inside a specific container.
+
+For more debugging documentation, see: https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+
+## Documentation Updates
+
+If applicable, update the [README.md](./README.md) to reflect any changes introduced by the new code.
+
 ## Sign your commits
 
 To get your PR merged, we require you to sign your commits.
