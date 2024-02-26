@@ -21,9 +21,8 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
           - -service-name=secrets-injector
-          - -alsologtostderr
+          - -logtostderr
           - -v=4
-          - 2>&1
           env:
           - name: POD_NAMESPACE
             valueFrom:
