@@ -293,6 +293,4 @@ If you can't inject secrets in your pod, make sure:
 
 1Password requests you practice responsible disclosure if you discover a vulnerability.
 
-Please file requests through [**BugCrowd**](https://bugcrowd.com/agilebits)
-
-For information about our security practices, please visit the [1Password Security homepage](https://1password.com/security/).
+Please file requests by sending an email to bugbounty@agilebits.com.
