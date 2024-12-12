@@ -42,17 +42,17 @@ spec:
           args: ["start"]
           # A 1Password Connect server will inject secrets into this application.
           env:
-            - name: OP_CONNECT_HOST
-              value: http://onepassword-connect:8080
-            - name: OP_CONNECT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: connect-token
-                  key: token
-            - name: DB_USERNAME
-              value: op://my-vault/my-item/sql/username
-            - name: DB_PASSWORD
-              value: op://my-vault/my-item/sql/password
+          - name: OP_CONNECT_HOST
+            value: http://onepassword-connect:8080
+          - name: OP_CONNECT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: connect-token
+                key: token
+          - name: DB_USERNAME
+            value: op://my-vault/my-item/sql/username
+          - name: DB_PASSWORD
+            value: op://my-vault/my-item/sql/password
 
         - name: my-app # my-app isn't listed in the inject annotation above, so secrets won't be injected into this container.
           image: my-image
@@ -61,10 +61,10 @@ spec:
           command: ["npm"]
           args: ["start"]
           env:
-            - name: DB_USERNAME
-              value: op://my-vault/my-item/sql/username
-            - name: DB_PASSWORD
-              value: op://my-vault/my-item/sql/password
+          - name: DB_USERNAME
+            value: op://my-vault/my-item/sql/username
+          - name: DB_PASSWORD
+            value: op://my-vault/my-item/sql/password
 ```
 
 <details>
@@ -98,15 +98,15 @@ spec:
           args: ["start"]
           # A 1Password Service Account will inject secrets into this application.
           env:
-            - name: OP_SERVICE_ACCOUNT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: op-service-account
-                  key: token
-            - name: DB_USERNAME
-              value: op://my-vault/my-item/sql/username
-            - name: DB_PASSWORD
-              value: op://my-vault/my-item/sql/password
+          - name: OP_SERVICE_ACCOUNT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: op-service-account
+                key: token
+          - name: DB_USERNAME
+            value: op://my-vault/my-item/sql/username
+          - name: DB_PASSWORD
+            value: op://my-vault/my-item/sql/password
 
         - name: my-app # my-app isn't listed in the inject annotation above, so secrets won't be injected into this container.
           image: my-image
@@ -115,17 +115,18 @@ spec:
           command: ["npm"]
           args: ["start"]
           env:
-            - name: DB_USERNAME
-              value: op://my-vault/my-item/sql/username
-            - name: DB_PASSWORD
-              value: op://my-vault/my-item/sql/password
+          - name: DB_USERNAME
+            value: op://my-vault/my-item/sql/username
+          - name: DB_PASSWORD
+            value: op://my-vault/my-item/sql/password
 ```
 
 </details>
 
 To inject secrets, the Pod you're looking to inject into must have a `command` value defined in its [Deployment or Pod spec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#container-v1-core). The 1Password Secrets Injector works by mutating the this value on initilization, and as such a command is needed to be mutated. If the deployments you're using aren't designed to have `command` specified in the deployment, then the 1Password Kubernetes Operator may be a better fit for your use case.
 
-**Note:** Injected secrets are available _only_ in the current pod's session. In other words, the secrets will only be accessible for the command listed in the container specification. To access it in any other session, for example using `kubectl exec`, it's necessary to prepend `op run --` to the command.
+**Note:** Injected secrets are available *only* in the current pod's session. In other words, the secrets will only be accessible for the command listed in the container specification. To access it in any other session, for example using `kubectl exec`, it's necessary to prepend `op run --` to the command.
+
 
 In the example above the `app-example1` container will have injected the `DB_USERNAME` and `DB_PASSWORD` values in the session executed by the command `npm start`.
 
