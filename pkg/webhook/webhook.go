@@ -57,9 +57,10 @@ var (
 )
 
 const (
-	injectionStatus   = "operator.1password.io/status"
-	injectAnnotation  = "operator.1password.io/inject"
-	versionAnnotation = "operator.1password.io/version"
+	injectionStatus             = "operator.1password.io/status"
+	injectAnnotation            = "operator.1password.io/inject"
+	injectorInitFirstAnnotation = "operator.1password.io/injector-init-first"
+	versionAnnotation           = "operator.1password.io/version"
 )
 
 type SecretInjector struct {
@@ -100,21 +101,20 @@ func mutationRequired(metadata *metav1.ObjectMeta) bool {
 }
 
 func addContainers(target, added []corev1.Container, basePath string) (patch []patchOperation) {
-	first := len(target) == 0
-	var value interface{}
-	for _, add := range added {
-		value = add
-		path := basePath
-		if first {
-			first = false
-			value = []corev1.Container{add}
-		} else {
-			path = path + "/-"
-		}
+	if len(target) == 0 {
 		patch = append(patch, patchOperation{
 			Op:    "add",
-			Path:  path,
-			Value: value,
+			Path:  basePath,
+			Value: added,
+		})
+		return patch
+	}
+
+	for _, c := range added {
+		patch = append(patch, patchOperation{
+			Op:    "add",
+			Path:  basePath + "/-",
+			Value: c,
 		})
 	}
 	return patch
@@ -210,24 +210,40 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	mutated := false
 
 	var patch []patchOperation
-	for i := range pod.Spec.InitContainers {
-		c := pod.Spec.InitContainers[i]
-		_, mutate := containers[c.Name]
-		if !mutate {
-			continue
-		}
-		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
-		if err != nil {
-			return &admissionv1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
+
+	mutateInitContainers := false
+	if value, exists := pod.Annotations[injectorInitFirstAnnotation]; exists && strings.ToLower(value) == "true" {
+		mutateInitContainers = true
+	}
+
+	if mutateInitContainers {
+		for i := range pod.Spec.InitContainers {
+			c := pod.Spec.InitContainers[i]
+			// do not mutate our own init container
+			if c.Name == "copy-op-bin" {
+				continue
 			}
+			_, mutate := containers[c.Name]
+			if !mutate {
+				continue
+			}
+			didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
+			if err != nil {
+				return &admissionv1.AdmissionResponse{
+					Result: &metav1.Status{
+						Message: err.Error(),
+					},
+				}
+			}
+			if didMutate {
+				mutated = true
+			}
+
+			for i := range initContainerPatch {
+				initContainerPatch[i].Path = strings.Replace(initContainerPatch[i].Path, "/spec/containers", "/spec/initContainers", 1)
+			}
+			patch = append(patch, initContainerPatch...)
 		}
-		if didMutate {
-			mutated = true
-		}
-		patch = append(patch, initContainerPatch...)
 	}
 
 	for i := range pod.Spec.Containers {
@@ -297,13 +313,33 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 
 // create mutation patch for resources
 func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []patchOperation) ([]byte, error) {
-
 	annotations := map[string]string{injectionStatus: "injected"}
 	patch = append(patch, addVolume(pod.Spec.Volumes, []corev1.Volume{binVolume}, "/spec/volumes")...)
-	patch = append(patch, addContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
-	patch = append(patch, updateAnnotation(pod.Annotations, annotations)...)
 
+	if value, exists := pod.Annotations[injectorInitFirstAnnotation]; exists && strings.ToLower(value) == "true" {
+		patch = append(patch, prependContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
+	} else {
+		patch = append(patch, addContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
+	}
+
+	patch = append(patch, updateAnnotation(pod.Annotations, annotations)...)
 	return json.Marshal(patch)
+}
+
+// adds containers to the beginning of the target
+func prependContainers(target, added []corev1.Container, basePath string) (patch []patchOperation) {
+	if len(target) == 0 {
+		return addContainers(target, added, basePath)
+	}
+
+	for i := len(added) - 1; i >= 0; i-- {
+		patch = append(patch, patchOperation{
+			Op:    "add",
+			Path:  basePath + "/0",
+			Value: added[i],
+		})
+	}
+	return patch
 }
 
 func isEnvVarSetup(envVarName string) func(c *corev1.Container) bool {
