@@ -18,6 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
+type ContainerType string
+
+const (
+	InitContainer ContainerType = "initContainer"
+	Container     ContainerType = "container"
+)
+
 const (
 	connectHostEnv  = "OP_CONNECT_HOST"
 	connectTokenEnv = "OP_CONNECT_TOKEN"
@@ -100,23 +107,26 @@ func mutationRequired(metadata *metav1.ObjectMeta) bool {
 	return required
 }
 
-func addContainers(target, added []corev1.Container, basePath string) (patch []patchOperation) {
-	if len(target) == 0 {
+func addContainers(target, containers []corev1.Container, basePath string) (patch []patchOperation) {
+	first := len(target) == 0
+	var value interface{}
+	for _, c := range containers {
+		value = c
+		path := basePath
+		if first {
+			first = false
+			value = []corev1.Container{c}
+		} else {
+			path = path + "/-"
+		}
+
 		patch = append(patch, patchOperation{
 			Op:    "add",
-			Path:  basePath,
-			Value: added,
+			Path:  path,
+			Value: value,
 		})
-		return patch
 	}
 
-	for _, c := range added {
-		patch = append(patch, patchOperation{
-			Op:    "add",
-			Path:  basePath + "/-",
-			Value: c,
-		})
-	}
 	return patch
 }
 
@@ -212,7 +222,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 	var patch []patchOperation
 
 	mutateInitContainers := false
-	if value, exists := pod.Annotations[injectorInitFirstAnnotation]; exists && strings.ToLower(value) == "true" {
+	if val, ok := pod.Annotations[injectorInitFirstAnnotation]; ok && strings.ToLower(val) == "true" {
 		mutateInitContainers = true
 	}
 
@@ -227,7 +237,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 			if !mutate {
 				continue
 			}
-			didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
+			didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i, InitContainer)
 			if err != nil {
 				return &admissionv1.AdmissionResponse{
 					Result: &metav1.Status{
@@ -253,7 +263,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 			continue
 		}
 
-		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i, Container)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -316,30 +326,22 @@ func createOPCLIPatch(pod *corev1.Pod, containers []corev1.Container, patch []pa
 	annotations := map[string]string{injectionStatus: "injected"}
 	patch = append(patch, addVolume(pod.Spec.Volumes, []corev1.Volume{binVolume}, "/spec/volumes")...)
 
-	if value, exists := pod.Annotations[injectorInitFirstAnnotation]; exists && strings.ToLower(value) == "true" {
-		patch = append(patch, prependContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
-	} else {
-		patch = append(patch, addContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
+	initFirst := false
+	if val, ok := pod.Annotations[injectorInitFirstAnnotation]; ok && strings.ToLower(val) == "true" {
+		initFirst = true
 	}
 
+	if initFirst {
+		if len(pod.Spec.InitContainers) > 0 {
+			patch = append(patch, removeContainers(getContainerPath(InitContainer))...)
+		}
+
+		containers = append(containers, pod.Spec.InitContainers...)
+	}
+
+	patch = append(patch, addContainers(pod.Spec.InitContainers, containers, "/spec/initContainers")...)
 	patch = append(patch, updateAnnotation(pod.Annotations, annotations)...)
 	return json.Marshal(patch)
-}
-
-// adds containers to the beginning of the target
-func prependContainers(target, added []corev1.Container, basePath string) (patch []patchOperation) {
-	if len(target) == 0 {
-		return addContainers(target, added, basePath)
-	}
-
-	for i := len(added) - 1; i >= 0; i-- {
-		patch = append(patch, patchOperation{
-			Op:    "add",
-			Path:  basePath + "/0",
-			Value: added[i],
-		})
-	}
-	return patch
 }
 
 func isEnvVarSetup(envVarName string) func(c *corev1.Container) bool {
@@ -386,7 +388,7 @@ func checkOPCLIEnvSetup(container *corev1.Container) {
 	}
 }
 
-func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int) []patchOperation {
+func passUserAgentInformationToCLI(container *corev1.Container, containerIndex int, containerType ContainerType) []patchOperation {
 	userAgentEnvs := []corev1.EnvVar{
 		{
 			Name:  "OP_INTEGRATION_NAME",
@@ -402,11 +404,11 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 		},
 	}
 
-	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
+	return setEnvironment(*container, containerIndex, userAgentEnvs, getContainerPath(containerType))
 }
 
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int, containerType ContainerType) (bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
 		return false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
@@ -418,7 +420,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 	var patch []patchOperation
 
 	// adding the cli to the container using a volume mount
-	path := fmt.Sprintf("%s/%d/volumeMounts", "/spec/containers", containerIndex)
+	path := fmt.Sprintf("%s/%d/volumeMounts", getContainerPath(containerType), containerIndex)
 	patch = append(patch, patchOperation{
 		Op:    "add",
 		Path:  path,
@@ -426,7 +428,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 	})
 
 	// replacing the container command with a command prepended with op run
-	path = fmt.Sprintf("%s/%d/command", "/spec/containers", containerIndex)
+	path = fmt.Sprintf("%s/%d/command", getContainerPath(containerType), containerIndex)
 	patch = append(patch, patchOperation{
 		Op:    "replace",
 		Path:  path,
@@ -436,7 +438,7 @@ func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.
 	checkOPCLIEnvSetup(container)
 
 	//creating patch for passing User-Agent information to the CLI.
-	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex)...)
+	patch = append(patch, passUserAgentInformationToCLI(container, containerIndex, containerType)...)
 	return true, patch, nil
 }
 
@@ -519,5 +521,22 @@ func (s *SecretInjector) Serve(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+	}
+}
+
+func getContainerPath(containerType ContainerType) string {
+	if containerType == InitContainer {
+		return "/spec/initContainers"
+	}
+	return "/spec/containers"
+}
+
+func removeContainers(path string) []patchOperation {
+	return []patchOperation{
+		{
+			Op:    "remove",
+			Path:  path,
+			Value: nil,
+		},
 	}
 }

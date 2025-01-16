@@ -333,6 +333,15 @@ var testPatch = map[string]struct {
 				},
 			},
 			{
+				"op":   "add",
+				"path": "/spec/initContainers/-",
+				"value": map[string]interface{}{
+					"command":   []string{"echo", "hello"},
+					"name":      "init-app",
+					"resources": map[string]interface{}{},
+				},
+			},
+			{
 				"op":    "replace",
 				"path":  "/spec/initContainers/0/command",
 				"value": []string{"/op/bin/op", "run", "--", "echo", "hello"},
@@ -461,7 +470,14 @@ var testPatch = map[string]struct {
 			},
 			{
 				"op":   "add",
-				"path": "/spec/initContainers/0",
+				"path": "/metadata/annotations",
+				"value": map[string]string{
+					"operator.1password.io/status": "injected",
+				},
+			},
+			{
+				"op":   "add",
+				"path": "/spec/initContainers/-",
 				"value": map[string]interface{}{
 					"name":      "copy-op-bin",
 					"image":     "1password/op:2",
@@ -478,9 +494,13 @@ var testPatch = map[string]struct {
 			},
 			{
 				"op":   "add",
-				"path": "/metadata/annotations",
-				"value": map[string]string{
-					"operator.1password.io/status": "injected",
+				"path": "/spec/initContainers/0/volumeMounts",
+				"value": []map[string]interface{}{
+					{
+						"mountPath": "/op/bin/",
+						"name":      "op-bin",
+						"readOnly":  true,
+					},
 				},
 			},
 		},
