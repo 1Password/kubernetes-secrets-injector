@@ -25,15 +25,14 @@ func init() {
 }
 
 func main() {
-	webhook.InitK8sClient()
-
 	var parameters webhook.SecretInjectorParameters
-
-	glog.Info("Starting webhook")
-	// get command line parameters
 	flag.IntVar(&parameters.Port, "port", 8443, "Webhook server port.")
 	flag.StringVar(&webhookServiceName, "service-name", "secrets-injector-svc", "Webhook service name.")
 	flag.Parse()
+
+	glog.Info("Starting webhook")
+
+	webhook.InitK8sClient()
 
 	dnsNames := []string{
 		webhookServiceName,
