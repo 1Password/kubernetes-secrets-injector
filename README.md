@@ -184,6 +184,15 @@ annotations:
   operator.1password.io/inject: "app-example1"
 ```
 
+To inject secrets into init containers, add the `operator.1password.io/injector-init-first: "true"` annotation. This ensures the 1Password init container runs first, making secrets available to your init containers:
+
+```yaml
+annotations:
+  # List both regular and init containers
+  operator.1password.io/inject: "app-example1,init-db-migration"
+  operator.1password.io/injector-init-first: "true"
+```
+
 ### Step 5: Configure the resource's environment
 
 Add an environment variable to the resource with a value referencing your 1Password item. Use the following secret reference syntax: `op://<vault>/<item>[/section]/<field>`.

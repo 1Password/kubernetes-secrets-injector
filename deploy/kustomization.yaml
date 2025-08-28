@@ -4,3 +4,4 @@ resources:
 - permissions.yaml
 - deployment.yaml
 - service.yaml
+namespace: default
