@@ -33,7 +33,7 @@ test/coverage:	## Run test suite with coverage report
 	go test -v ./... -cover
 
 build/secrets-injector:	## Build secrets-injector Docker image
-	@docker build -f Dockerfile --build-arg injector_version=$(curVersion) -t $(INJECTOR_DOCKER_IMG_TAG) .
+	@docker build -f Dockerfile --build-arg secret_injector_version=$(curVersion) -t $(INJECTOR_DOCKER_IMG_TAG) .
 	@echo "Successfully built and tagged image."
 	@echo "Tag: $(INJECTOR_DOCKER_IMG_TAG)"
 
@@ -42,7 +42,7 @@ build/secrets-injector/local:	## Build local version of the secrets-injector Doc
 
 build/secrets-injector/binary: clean	## Build secrets-injector binary
 	@mkdir -p dist
-	@go build -mod vendor -a -o manager ./cmd/manager/main.go
+	@go build -a -o manager ./cmd
 	@mv manager ./dist
 
 clean:
