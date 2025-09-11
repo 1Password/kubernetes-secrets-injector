@@ -1,23 +1,25 @@
 # Build the manager binary
-FROM golang:1.20 as builder
+FROM golang:1.24 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
 
+# Download dependencies
+RUN go mod download
+
 # Copy the go source
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 COPY version/ version/
-COPY vendor/ vendor/
+
 # Build
 ARG secret_injector_version=dev
 RUN CGO_ENABLED=0 \
     GO111MODULE=on \
     go build \
     -ldflags "-X \"github.com/1Password/kubernetes-secrets-injector/version.Version=$secret_injector_version\"" \
-    -mod vendor \
     -a -o injector ./cmd
 
 # Use distroless as minimal base image to package the secrets-injector binary
