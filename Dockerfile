@@ -6,13 +6,13 @@ WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
 
-# Download dependencies
-RUN go mod download
-
 # Copy the go source
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 COPY version/ version/
+
+# Download dependencies
+RUN go mod download
 
 # Build
 ARG secret_injector_version=dev
