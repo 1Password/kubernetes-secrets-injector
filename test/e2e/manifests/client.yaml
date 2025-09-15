@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-example
+spec:
+  selector:
+    matchLabels:
+      app: app-example
+  template:
+    metadata:
+      annotations:
+        operator.1password.io/inject: "app-example"
+      labels:
+        app: app-example
+    spec:
+      containers:
+        - name: app-example
+          image: app-example:latest
+          imagePullPolicy: Never
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "0.2"
+          ports:
+            - containerPort: 5000
+          command: [ "npm" ]
+          args: [ "start" ]
+          env:
+            - name: OP_SERVICE_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: onepassword-service-account-token
+                  key: token
+            - name: USER_NAME
+              value: op://A/Login/username
+            - name: PASSWORD
+              value: op://A/Login/password
