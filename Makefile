@@ -5,7 +5,6 @@ ifndef ignore-not-found
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: test build build/binary build/local clean test/coverage release/prepare release/tag .check_bump_type .check_git_clean help kustomize set-namespace deploy undeploy
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
@@ -23,50 +22,57 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 versionFile = $(CURDIR)/.VERSION
 curVersion := $(shell cat $(versionFile) | sed 's/^v//')
 
-INJECTOR_NAME := 1password/kubernetes-secrets-injector
-INJECTOR_DOCKER_IMG_TAG ?= $(INJECTOR_NAME):v$(curVersion)
+IMG_TAG ?= 1password/kubernetes-secrets-injector:latest
 
+.PHONY: test
 test:	## Run test suite
 	go test ./...
 
+.PHONY: test/coverage
 test/coverage:	## Run test suite with coverage report
 	go test -v ./... -cover
 
-build/secrets-injector:	## Build secrets-injector Docker image
-	@docker build -f Dockerfile --build-arg secret_injector_version=$(curVersion) -t $(INJECTOR_DOCKER_IMG_TAG) .
+.PHONY: docker-build
+docker-build:	## Build secrets-injector Docker image
+	@docker build -f Dockerfile --build-arg secret_injector_version=$(curVersion) -t $(IMG_TAG) .
 	@echo "Successfully built and tagged image."
-	@echo "Tag: $(INJECTOR_DOCKER_IMG_TAG)"
+	@echo "Tag: $(IMG_TAG)"
 
-build/secrets-injector/local:	## Build local version of the secrets-injector Docker image
-	@docker build -f Dockerfile -t local/$(INJECTOR_DOCKER_IMG_TAG) .
-
+.PHONY: build/secrets-injector/binary
 build/secrets-injector/binary: clean	## Build secrets-injector binary
 	@mkdir -p dist
 	@go build -a -o manager ./cmd
 	@mv manager ./dist
 
+.PHONY: clean
 clean:
 	rm -rf ./dist
 
+.PHONY: help
 help:	## Prints this help message
 	@grep -E '^[\/a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	test -s $(LOCALBIN)/kustomize || { curl -s $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
+.PHONY: set-namespace
 set-namespace: kustomize
 	cd deploy && $(KUSTOMIZE) edit set namespace $(shell kubectl config view --minify -o jsonpath={..namespace})
 
+.PHONY: deploy
 deploy: set-namespace
 	$(KUSTOMIZE) build deploy | kubectl apply -f -
 
+.PHONY: undeploy
 undeploy:
 	$(KUSTOMIZE) build deploy --reorder none | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 
 ## Release functions =====================
 
+.PHONY: release/prepare
 release/prepare: .check_git_clean	## Updates changelog and creates release branch (call with 'release/prepare version=<new_version_number>')
 
 	@test $(version) || (echo "[ERROR] version argument not set."; exit 1)
@@ -76,6 +82,7 @@ release/prepare: .check_git_clean	## Updates changelog and creates release branc
 
 	@NEW_VERSION=$(version) $(SCRIPTS_DIR)/prepare-release.sh
 
+.PHONY: release/tag
 release/tag: .check_git_clean	## Creates git tag
 	@git pull --ff-only
 	@echo "Applying tag 'v$(curVersion)' to HEAD..."
@@ -85,6 +92,7 @@ release/tag: .check_git_clean	## Creates git tag
 
 ## Helper functions =====================
 
+.PHONY: .check_git_clean
 .check_git_clean:
 ifneq ($(GIT_BRANCH), $(MAIN_BRANCH))
 	@echo "[ERROR] Please checkout default branch '$(MAIN_BRANCH)' and re-run this command."; exit 1;
