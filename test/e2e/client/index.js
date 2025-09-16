@@ -9,4 +9,4 @@ app.use(express.urlencoded({ extended: true })); // for parsing application/x-ww
 
 app.listen(5000, () => console.log("Example app listening on port 5000!"));
 
-console.log(process.env);
+console.log(`SECRET: '${process.env.SECRET}'`);

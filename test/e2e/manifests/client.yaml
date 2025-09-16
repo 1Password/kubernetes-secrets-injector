@@ -8,8 +8,6 @@ spec:
       app: app-example
   template:
     metadata:
-      annotations:
-        operator.1password.io/inject: "app-example"
       labels:
         app: app-example
     spec:
@@ -31,7 +29,5 @@ spec:
                 secretKeyRef:
                   name: onepassword-service-account-token
                   key: token
-            - name: USER_NAME
-              value: op://A/Login/username # replace with path to you secret if testing locally
-            - name: PASSWORD
+            - name: SECRET
               value: op://A/Login/password # replace with path to you secret if testing locally

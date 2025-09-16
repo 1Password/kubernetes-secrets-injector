@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	imageName = "1password/kubernetes-secrets-injector:latest"
+	imageName     = "1password/kubernetes-secrets-injector:latest"
+	containerName = "app-example"
 )
 
 var kubeClient *kube.Kube
@@ -35,15 +36,15 @@ var _ = Describe("Kubernetes Secrets Injector e2e", Ordered, func() {
 		_, err := system.Run("make", "docker-build")
 		Expect(err).NotTo(HaveOccurred())
 
-		By("Building app-example image")
+		By("Building" + containerName + "image")
 		root, err := system.GetProjectRoot()
 		Expect(err).NotTo(HaveOccurred())
 		clientDir := filepath.Join(root, "test", "e2e", "client")
-		_, err = system.Run("docker", "build", "-t", "app-example:latest", clientDir)
+		_, err = system.Run("docker", "build", "-t", containerName+":latest", clientDir)
 		Expect(err).NotTo(HaveOccurred())
 
 		kind.LoadImageToKind(imageName)
-		kind.LoadImageToKind("app-example:latest")
+		kind.LoadImageToKind(containerName + ":latest")
 
 		kubeClient.Secret("op-credentials").CreateOpCredentials(ctx)
 		kubeClient.Secret("op-credentials").CheckIfExists(ctx)
@@ -71,7 +72,7 @@ var _ = Describe("Kubernetes Secrets Injector e2e", Ordered, func() {
 		_, err = system.Run("kubectl", "apply", "-f", yamlPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		kubeClient.Pod(map[string]string{"app": "app-example"}).WaitingForRunningPod(ctx)
+		kubeClient.Pod(map[string]string{"app": containerName}).WaitingForRunningPod(ctx)
 	})
 
 	//Context("Use Injector with Connect", func() {
@@ -106,13 +107,23 @@ var _ = Describe("Kubernetes Secrets Injector e2e", Ordered, func() {
 
 // runCommonTestCases contains test cases that are common to both Connect and Service Account authentication methods.
 func runCommonTestCases(ctx context.Context) {
-	It("Should inject env variables into test app container", func() {
+	It("Should NOT inject env variables into test app container without annotation", func() {
 		kubeClient.Pod(map[string]string{
-			"app": "app-example",
+			"app": containerName,
+		}).VerifySecretsNotInjected(ctx)
+	})
+
+	It("Should inject the webhook and secret into app pod", func() {
+		kubeClient.Deployment("app-example").AddAnnotation(ctx, map[string]string{
+			"operator.1password.io/inject": containerName,
+		})
+
+		kubeClient.Pod(map[string]string{
+			"app": containerName,
 		}).VerifyWebhookInjection(ctx)
 
 		kubeClient.Pod(map[string]string{
-			"app": "app-example",
+			"app": containerName,
 		}).VerifySecretsInjected(ctx)
 	})
 }
