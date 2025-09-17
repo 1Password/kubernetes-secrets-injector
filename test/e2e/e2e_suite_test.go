@@ -9,10 +9,10 @@ import (
 	//nolint:staticcheck // ST1001
 	. "github.com/onsi/gomega"
 
-	"github.com/1password/kubernetes-secrets-injector/pkg/testhelper/defaults"
-	"github.com/1password/kubernetes-secrets-injector/pkg/testhelper/kind"
-	"github.com/1password/kubernetes-secrets-injector/pkg/testhelper/kube"
-	"github.com/1password/kubernetes-secrets-injector/pkg/testhelper/system"
+	"github.com/1Password/onepassword-operator/pkg/testhelper/defaults"
+	"github.com/1Password/onepassword-operator/pkg/testhelper/kind"
+	"github.com/1Password/onepassword-operator/pkg/testhelper/kube"
+	"github.com/1Password/onepassword-operator/pkg/testhelper/system"
 )
 
 const (
