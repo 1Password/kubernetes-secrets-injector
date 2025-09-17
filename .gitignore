@@ -80,3 +80,4 @@ op-ss-client/
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 
 bin
+**/1password-credentials.json
