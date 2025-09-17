@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917160811-79ee171b7fa8 // indirect
+	github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917162121-03b093ac17cf // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
