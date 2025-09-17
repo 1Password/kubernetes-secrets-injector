@@ -26,7 +26,7 @@ IMG_TAG ?= 1password/kubernetes-secrets-injector:latest
 
 .PHONY: test
 test:	## Run test suite
-	go test ./...
+	go test $(shell go list ./... | grep -v /test/e2e)
 
 KIND ?= kind
 KIND_CLUSTER ?= kubernetes-secrets-injector-test-e2e
