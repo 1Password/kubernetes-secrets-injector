@@ -1,12 +1,9 @@
-import express from "express";
-import ejs from "ejs";
+import http from "http";
 
-const app = express();
-app.engine("html", ejs.renderFile);
-app.set("view engine", "html");
-app.use(express.json()); // for parsing application/json
-app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+const server = http.createServer(() => { });
+const PORT = process.env.PORT || 3000;
 
-app.listen(5000, () => console.log("Example app listening on port 5000!"));
-
-console.log(`SECRET: '${process.env.SECRET}'`);
+server.listen(PORT, () => {
+    console.log(`Example app listening on port ${PORT}!`);
+    console.log(`SECRET: '${process.env.SECRET}'`);
+});

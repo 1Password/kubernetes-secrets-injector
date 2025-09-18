@@ -3,10 +3,7 @@
   "version": "1.0.0",
   "description": "Application to test Kubernetes Secrets Injector",
   "main": "index.js",
-  "dependencies": {
-    "ejs": "^3.1.9",
-    "express": "^4.18.2"
-  },
+  "dependencies": {},
   "scripts": {
     "start": "node index.js"
   },
