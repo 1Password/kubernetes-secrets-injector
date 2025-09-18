@@ -43,12 +43,6 @@ jobs:
         with:
           cluster_name: kubernetes-secrets-injector-test-e2e
 
-        # install cli to interact with item in 1Password to update/read using `testhelper/op` package
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v2
-        with:
-          version: 2.32.0
-
       - name: Create '1password-credentials.json' file
         env:
           OP_CONNECT_CREDENTIALS: ${{ secrets.OP_CONNECT_CREDENTIALS }}
