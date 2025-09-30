@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   e2e-test:
+    if: github.event.pull_request.head.repo.full_name == github.repository # run only for PRs from the same repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
