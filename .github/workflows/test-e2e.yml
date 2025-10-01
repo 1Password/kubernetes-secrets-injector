@@ -1,10 +1,10 @@
-name: Test E2E
+name: E2E Tests
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: ['**']   # run for PRs targeting any branch (main and others)
-    paths-ignore:
+    paths-ignore: &ignore_paths
       - 'docs/**'
       - '*.md'
       - '.golangci.yml'
@@ -12,12 +12,7 @@ on:
       - 'LICENSE'
   push:
     branches: [ main ]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.golangci.yml'
-      - '.gitignore'
-      - 'LICENSE'
+    paths-ignore: *ignore_paths
 
 concurrency:
   group: e2e-${{ github.event.pull_request.head.ref }}
@@ -25,32 +20,8 @@ concurrency:
 
 jobs:
   e2e-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-
-      - name: Install dependencies
-        run: go mod tidy
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1
-        with:
-          cluster_name: kubernetes-secrets-injector-test-e2e
-
-      - name: Create '1password-credentials.json' file
-        env:
-          OP_CONNECT_CREDENTIALS: ${{ secrets.OP_CONNECT_CREDENTIALS }}
-        run: |
-          echo "$OP_CONNECT_CREDENTIALS" > 1password-credentials.json
-
-      - name: Run E2E tests
-        run: make test-e2e
-        env:
-          OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
-          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+    uses: ./.github/workflows/e2e-tests.yml
+    secrets:
+      OP_CONNECT_CREDENTIALS: ${{ secrets.OP_CONNECT_CREDENTIALS }}
+      OP_CONNECT_TOKEN: ${{ secrets.OP_CONNECT_TOKEN }}
+      OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
