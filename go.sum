@@ -4,6 +4,8 @@ github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917160811-7
 github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917160811-79ee171b7fa8/go.mod h1:TTN5GW/y28qshj+VNQ+rS5JX70Ph8v7Venn23JEUmus=
 github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917162121-03b093ac17cf h1:v029kV3uIrjuzVMy+ld+ElWuJ85fljsTctkZemPoXwA=
 github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250917162121-03b093ac17cf/go.mod h1:TTN5GW/y28qshj+VNQ+rS5JX70Ph8v7Venn23JEUmus=
+github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250930215610-edde90375985 h1:2DIknkw8cZPRvQGfd6Y127Z9ZDcMZOLZrIYojLTLf/E=
+github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250930215610-edde90375985/go.mod h1:TTN5GW/y28qshj+VNQ+rS5JX70Ph8v7Venn23JEUmus=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
