@@ -21,9 +21,18 @@ concurrency:
 
 jobs:
   e2e-test:
-    if: github.event.pull_request.head.repo.full_name == github.repository # run only for PRs from the same repository
     runs-on: ubuntu-latest
     steps:
+      - name: Check if PR is from external contributor
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "❌ External PR detected. This workflow requires approval from a maintainer."
+            echo "Please ask a maintainer to run '/ok-to-test' command to trigger the fork workflow."
+            exit 1
+          fi
+          echo "✅ Internal PR detected. Proceeding with tests."
+
       - name: Checkout code
         uses: actions/checkout@v5
 
