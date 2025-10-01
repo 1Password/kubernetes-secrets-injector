@@ -11,16 +11,15 @@ on:
       - '.gitignore'
       - 'LICENSE'
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore: *ignore_paths
 
 concurrency:
   group: e2e-${{ github.event.pull_request.head.ref }}
-  cancel-in-progress: true # cancel previous job runs for the same branch
+  cancel-in-progress: true  # cancel previous job runs for the same branch
 
 jobs:
   e2e-test:
-    if: github.event.pull_request.head.repo.full_name == github.repository # run only for PRs from the same repository
     uses: ./.github/workflows/e2e-tests.yml
     secrets:
       OP_CONNECT_CREDENTIALS: ${{ secrets.OP_CONNECT_CREDENTIALS }}
