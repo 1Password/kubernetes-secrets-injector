@@ -19,7 +19,22 @@ concurrency:
   cancel-in-progress: true  # cancel previous job runs for the same branch
 
 jobs:
+  check-external-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check if PR is from external contributor
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "❌ External PR detected. This workflow requires approval from a maintainer."
+            echo "Please ask a maintainer to run '/ok-to-test' command to trigger the fork workflow."
+            exit 1
+          fi
+          echo "✅ Internal PR detected. Proceeding with tests."
+
   e2e-test:
+    needs: check-external-pr
+    if: always() && (needs.check-external-pr.result == 'success' || github.event_name != 'pull_request')
     uses: ./.github/workflows/e2e-tests.yml
     secrets:
       OP_CONNECT_CREDENTIALS: ${{ secrets.OP_CONNECT_CREDENTIALS }}
