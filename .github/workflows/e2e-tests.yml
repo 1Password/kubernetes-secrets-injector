@@ -2,6 +2,11 @@ name: E2E Tests
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout"
+        required: true
+        type: string
     secrets:
       OP_CONNECT_CREDENTIALS:
         description: '1Password Connect credentials'
@@ -19,6 +24,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
