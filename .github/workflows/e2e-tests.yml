@@ -2,15 +2,20 @@ name: E2E Tests
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout"
+        required: true
+        type: string
     secrets:
       OP_CONNECT_CREDENTIALS:
-        description: '1Password Connect credentials'
+        description: "1Password Connect credentials"
         required: true
       OP_CONNECT_TOKEN:
-        description: '1Password Connect token'
+        description: "1Password Connect token"
         required: true
       OP_SERVICE_ACCOUNT_TOKEN:
-        description: '1Password service account token'
+        description: "1Password service account token"
         required: true
 
 jobs:
@@ -19,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
