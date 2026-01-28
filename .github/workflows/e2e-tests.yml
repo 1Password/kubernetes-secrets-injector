@@ -9,13 +9,13 @@ on:
         type: string
     secrets:
       OP_CONNECT_CREDENTIALS:
-        description: '1Password Connect credentials'
+        description: "1Password Connect credentials"
         required: true
       OP_CONNECT_TOKEN:
-        description: '1Password Connect token'
+        description: "1Password Connect token"
         required: true
       OP_SERVICE_ACCOUNT_TOKEN:
-        description: '1Password service account token'
+        description: "1Password service account token"
         required: true
 
 jobs:
@@ -25,7 +25,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
           ref: ${{ inputs.ref }}
 
       - name: Set up Go
