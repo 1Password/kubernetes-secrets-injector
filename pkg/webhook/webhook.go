@@ -161,7 +161,9 @@ func updateAnnotation(target map[string]string, added map[string]string) (patch 
 	// Existing annotations: add or replace only our keys so we preserve others.
 	for key, value := range added {
 		path := "/metadata/annotations/" + escapeJSONPointerKey(key)
-		if target[key] == "" {
+		// Add when key is missing, replace when it exists
+		_, exists := target[key]
+		if !exists {
 			patch = append(patch, patchOperation{
 				Op:    "add",
 				Path:  path,
