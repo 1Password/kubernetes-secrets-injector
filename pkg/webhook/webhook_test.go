@@ -278,6 +278,34 @@ var _ = Describe("Webhook Test", Ordered, func() {
 			Expect(patched.Annotations).To(HaveKeyWithValue("operator.1password.io/status", "injected"))
 			Expect(patched.Annotations).To(HaveKeyWithValue("myannotation", "mine"))
 		})
+
+		It("replaces status when the key already exists (empty value)", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject": "app",
+						// key exists but with an empty value
+						"operator.1password.io/status": "",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			Expect(responseBody.Patch).NotTo(BeNil())
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+			Expect(patched.Annotations).To(HaveKeyWithValue("operator.1password.io/status", "injected"))
+		})
 	})
 
 })
