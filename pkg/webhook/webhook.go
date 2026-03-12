@@ -141,21 +141,38 @@ func addVolume(target, added []corev1.Volume, basePath string) (patch []patchOpe
 	return patch
 }
 
+// escapeJSONPointerKey escapes a key for use in a JSON Pointer path segment (RFC 6901).
+func escapeJSONPointerKey(key string) string {
+	key = strings.ReplaceAll(key, "~", "~0")
+	key = strings.ReplaceAll(key, "/", "~1")
+	return key
+}
+
 func updateAnnotation(target map[string]string, added map[string]string) (patch []patchOperation) {
+	if len(target) == 0 {
+		// No existing annotations: create the whole map with our keys only.
+		patch = append(patch, patchOperation{
+			Op:    "add",
+			Path:  "/metadata/annotations",
+			Value: added,
+		})
+		return patch
+	}
+	// Existing annotations: add or replace only our keys so we preserve others.
 	for key, value := range added {
-		if target == nil || target[key] == "" {
-			target = map[string]string{}
+		path := "/metadata/annotations/" + escapeJSONPointerKey(key)
+		// Add when key is missing, replace when it exists
+		_, exists := target[key]
+		if !exists {
 			patch = append(patch, patchOperation{
-				Op:   "add",
-				Path: "/metadata/annotations",
-				Value: map[string]string{
-					key: value,
-				},
+				Op:    "add",
+				Path:  path,
+				Value: value,
 			})
 		} else {
 			patch = append(patch, patchOperation{
 				Op:    "replace",
-				Path:  "/metadata/annotations/" + key,
+				Path:  path,
 				Value: value,
 			})
 		}

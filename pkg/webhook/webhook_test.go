@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -33,6 +34,22 @@ func parseResponseBody(rr *httptest.ResponseRecorder) *admissionv1.AdmissionResp
 	Expect(err2).NotTo(HaveOccurred())
 
 	return resBody.Response
+}
+
+func sendPodAndGetResponse(pod corev1.Pod, rr *httptest.ResponseRecorder, handler http.HandlerFunc) *admissionv1.AdmissionResponse {
+	raw, err := json.Marshal(pod)
+	Expect(err).NotTo(HaveOccurred())
+	ar := admissionv1.AdmissionReview{
+		Request: &admissionv1.AdmissionRequest{
+			Namespace: "default",
+			Object:    runtime.RawExtension{Raw: raw},
+		},
+	}
+	body, err := json.Marshal(ar)
+	Expect(err).NotTo(HaveOccurred())
+	req := createRequest(bytes.NewReader(body))
+	handler.ServeHTTP(rr, req)
+	return parseResponseBody(rr)
 }
 
 var testNotPatch = map[string]struct {
@@ -185,5 +202,110 @@ var _ = Describe("Webhook Test", Ordered, func() {
 		}
 	})
 
-	// TODO: cover cases when patch is created, check it contains env vars, volumes etc.
+	Context("preserves existing pod template annotations", func() {
+		It("does not overwrite annotations; adds only status via per-key patch", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject":  "app",
+						"operator.1password.io/version": "2-beta",
+						"myannotation":                  "mine",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			Expect(responseBody.Patch).NotTo(BeNil())
+
+			var patch []patchOperation
+			Expect(json.Unmarshal(responseBody.Patch, &patch)).To(Succeed())
+			// Must not replace the whole annotations object (which would drop myannotation).
+			var hasOverwriteOp bool
+			for _, op := range patch {
+				if op.Path == "/metadata/annotations" && op.Op == "add" {
+					hasOverwriteOp = true
+					break
+				}
+			}
+			Expect(hasOverwriteOp).To(BeFalse(),
+				"patch must not add whole /metadata/annotations when pod already has annotations")
+
+			// Status must be set via per-key path so we don't overwrite other annotations.
+			var foundStatusPatch bool
+			for _, op := range patch {
+				if op.Path == "/metadata/annotations/operator.1password.io~1status" && (op.Op == "add" || op.Op == "replace") {
+					foundStatusPatch = true
+					Expect(op.Value).To(Equal("injected"))
+					break
+				}
+			}
+			Expect(foundStatusPatch).To(BeTrue(), "patch should set operator.1password.io/status via per-key path")
+		})
+
+		It("applying the patch preserves custom annotations and sets status", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject":  "app",
+						"operator.1password.io/version": "2-beta",
+						"myannotation":                  "mine",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			Expect(responseBody.Patch).NotTo(BeNil())
+
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+
+			Expect(patched.Annotations).To(HaveKeyWithValue("operator.1password.io/status", "injected"))
+			Expect(patched.Annotations).To(HaveKeyWithValue("myannotation", "mine"))
+		})
+
+		It("replaces status when the key already exists (empty value)", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject": "app",
+						// key exists but with an empty value
+						"operator.1password.io/status": "",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			Expect(responseBody.Patch).NotTo(BeNil())
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+			Expect(patched.Annotations).To(HaveKeyWithValue("operator.1password.io/status", "injected"))
+		})
+	})
+
 })
