@@ -42,7 +42,7 @@ jobs:
     name: Create Release Pull Request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Parse release version
         id: get_version
@@ -64,7 +64,7 @@ jobs:
           ## Release Changelog Preview
           ${LOG_ENTRY}
           "
-          
+
           echo "pr_body<<${DELIMITER}${PR_BODY_CONTENT}${DELIMITER}" >> "${GITHUB_OUTPUT}"
       - name: Create Pull Request via API
         id: post_pr
