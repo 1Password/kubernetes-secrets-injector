@@ -13,6 +13,8 @@ Read more on the [1Password Developer Portal](https://developer.1password.com/co
 - [Troubleshooting](#troubleshooting)
 - [Security](#security)
 
+*This project is licensed under [MIT](./LICENSE). Use of the 1Password APIs and services accessed through these tools is governed by the [1Password API Terms of Service](https://1password.com/legal/api-sdk-terms-of-service).*
+
 ## Usage
 
 ```yaml
@@ -294,3 +296,4 @@ If you can't inject secrets in your pod, make sure:
 1Password requests you practice responsible disclosure if you discover a vulnerability.
 
 Please file requests by sending an email to bugbounty@agilebits.com.
+
