@@ -57,9 +57,10 @@ var (
 )
 
 const (
-	injectionStatus   = "operator.1password.io/status"
-	injectAnnotation  = "operator.1password.io/inject"
-	versionAnnotation = "operator.1password.io/version"
+	injectionStatus      = "operator.1password.io/status"
+	injectAnnotation     = "operator.1password.io/inject"
+	versionAnnotation    = "operator.1password.io/version"
+	runEnvFileAnnotation = "operator.1password.io/run-env-file"
 )
 
 type SecretInjector struct {
@@ -233,7 +234,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 		if !mutate {
 			continue
 		}
-		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, initContainerPatch, err := s.mutateContainer(ctx, &c, i, pod.Annotations)
 		if err != nil {
 			return &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
@@ -254,7 +255,7 @@ func (s *SecretInjector) mutate(ar *admissionv1.AdmissionReview) *admissionv1.Ad
 			continue
 		}
 
-		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i)
+		didMutate, containerPatch, err := s.mutateContainer(ctx, &c, i, pod.Annotations)
 		if err != nil {
 			glog.Error("Error occurred mutating container for secret injection: ", err)
 			return &admissionv1.AdmissionResponse{
@@ -386,15 +387,35 @@ func passUserAgentInformationToCLI(container *corev1.Container, containerIndex i
 	return setEnvironment(*container, containerIndex, userAgentEnvs, "/spec/containers")
 }
 
+// buildOpRunFlags returns extra flags to pass to `op run` for the given container,
+// derived from per-container annotations like `operator.1password.io/run-env-file.<container>`.
+// Values may be comma-separated to repeat the flag (e.g. multiple --env-file paths).
+func buildOpRunFlags(annotations map[string]string, containerName string) []string {
+	var flags []string
+	if v, ok := annotations[runEnvFileAnnotation+"."+containerName]; ok {
+		for _, path := range strings.Split(v, ",") {
+			path = strings.TrimSpace(path)
+			if path == "" {
+				continue
+			}
+			flags = append(flags, "--env-file="+path)
+		}
+	}
+	return flags
+}
+
 // mutates the container to allow for secrets to be injected into the container via the op cli
-func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int) (bool, []patchOperation, error) {
+func (s *SecretInjector) mutateContainer(cxt context.Context, container *corev1.Container, containerIndex int, podAnnotations map[string]string) (bool, []patchOperation, error) {
 	//  prepending op run command to the container command so that secrets are injected before the main process is started
 	if len(container.Command) == 0 {
 		return false, nil, fmt.Errorf("not attaching OP to the container %s: the podspec does not define a command", container.Name)
 	}
 
-	// Prepend the command with op run --
-	container.Command = append([]string{binVolumeMountPath + "op", "run", "--"}, container.Command...)
+	// Prepend the command with op run [flags] --
+	runFlags := buildOpRunFlags(podAnnotations, container.Name)
+	prefix := append([]string{binVolumeMountPath + "op", "run"}, runFlags...)
+	prefix = append(prefix, "--")
+	container.Command = append(prefix, container.Command...)
 
 	var patch []patchOperation
 
