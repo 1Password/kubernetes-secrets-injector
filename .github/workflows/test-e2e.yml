@@ -30,6 +30,11 @@ jobs:
       condition: ${{ steps.check.outputs.condition }}
       ref: ${{ steps.check.outputs.ref }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
       - name: Check if PR is from external contributor
         id: check
         run: |
@@ -100,12 +105,17 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
       - name: Create URL to the run output
         id: vars
         run: echo "run-url=https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Create comment on PR
-        uses: peter-evans/create-or-update-comment@v5
+        uses: step-security/create-or-update-comment@5497a4d6a6aece527d2f86e14b7a18e01fbd5d48 # v5.0.1
         with:
           issue-number: ${{ github.event.client_payload.pull_request.number }}
           body: |
