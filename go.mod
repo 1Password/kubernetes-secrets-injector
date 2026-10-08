@@ -5,7 +5,9 @@ go 1.24.0
 toolchain go1.24.5
 
 require (
-	github.com/golang/glog v1.1.1
+	github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250930215610-edde90375985
+	github.com/evanphx/json-patch/v5 v5.9.11
+	github.com/golang/glog v1.2.5
 	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
 	github.com/stretchr/testify v1.10.0
@@ -15,11 +17,9 @@ require (
 )
 
 require (
-	github.com/1Password/onepassword-operator/pkg/testhelper v0.0.0-20250930215610-edde90375985 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
-	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
