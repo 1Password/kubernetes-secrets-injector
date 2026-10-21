@@ -12,6 +12,20 @@
 
 ---
 
+[//]: # (START/v1.0.3)
+# v1.0.3
+
+## Fixes
+ * Webhook no longer overwrites existing pod annotations; only the injector's own keys are added or updated. {#65}
+ * Command-line flags are now parsed before logging starts. {#46}
+ * Default deployment manifest now uses `imagePullPolicy: IfNotPresent`. {#38}
+
+## Security
+ * Rebuilt on Go 1.26.10 and an updated distroless base image that removes the compromised eMudhra and Comodo AAA roots from the trust store. {#94}
+ * Upgraded Kubernetes client libraries to v0.34.1. {#61}
+
+---
+
 [//]: # (START/v1.0.2)
 # v1.0.2
 
