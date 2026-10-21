@@ -2,7 +2,7 @@ module github.com/1password/kubernetes-secrets-injector
 
 go 1.24.0
 
-toolchain go1.24.5
+toolchain go1.26.10
 
 require (
 	github.com/golang/glog v1.1.1
