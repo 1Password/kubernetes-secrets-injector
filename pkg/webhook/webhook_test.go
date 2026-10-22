@@ -279,6 +279,91 @@ var _ = Describe("Webhook Test", Ordered, func() {
 			Expect(patched.Annotations).To(HaveKeyWithValue("myannotation", "mine"))
 		})
 
+		It("injects --env-file flag from per-container run-env-file annotation", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject":           "app",
+						"operator.1password.io/run-env-file.app": "/etc/app.env",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			Expect(responseBody.Patch).NotTo(BeNil())
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+			Expect(patched.Spec.Containers[0].Command).To(Equal([]string{
+				"/op/bin/op", "run", "--env-file=/etc/app.env", "--", "sleep", "infinity",
+			}))
+		})
+
+		It("injects multiple --env-file flags when annotation value is comma-separated", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject":           "app",
+						"operator.1password.io/run-env-file.app": "/etc/app.env, /etc/extra.env",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+			Expect(patched.Spec.Containers[0].Command).To(Equal([]string{
+				"/op/bin/op", "run", "--env-file=/etc/app.env", "--env-file=/etc/extra.env", "--", "sleep", "infinity",
+			}))
+		})
+
+		It("does not add --env-file when run-env-file annotation targets a different container", func() {
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"operator.1password.io/inject":             "app",
+						"operator.1password.io/run-env-file.other": "/etc/other.env",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: "app", Command: []string{"sleep", "infinity"}},
+					},
+				},
+			}
+			raw, err := json.Marshal(pod)
+			Expect(err).NotTo(HaveOccurred())
+			responseBody := sendPodAndGetResponse(pod, rr, handler)
+			patch, err := jsonpatch.DecodePatch(responseBody.Patch)
+			Expect(err).NotTo(HaveOccurred())
+			patchedRaw, err := patch.Apply(raw)
+			Expect(err).NotTo(HaveOccurred())
+			var patched corev1.Pod
+			Expect(json.Unmarshal(patchedRaw, &patched)).To(Succeed())
+			Expect(patched.Spec.Containers[0].Command).To(Equal([]string{
+				"/op/bin/op", "run", "--", "sleep", "infinity",
+			}))
+		})
+
 		It("replaces status when the key already exists (empty value)", func() {
 			pod := corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{

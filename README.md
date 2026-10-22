@@ -283,6 +283,27 @@ env:
     value: op://my-vault/my-item/sql/username
 ```
 
+## Passing flags to `op run`
+
+By default the injector rewrites the container command to `op run -- <original command>`. You can pass additional flags to `op run` per container using annotations:
+
+| Annotation | Maps to | Notes |
+|---|---|---|
+| `operator.1password.io/run-env-file.<container-name>` | `--env-file=<value>` | Comma-separate paths to repeat the flag (e.g. `"/etc/app.env,/etc/extra.env"`). |
+
+Example:
+
+```yaml
+# client-deployment.yaml
+annotations:
+  operator.1password.io/inject: "app"
+  operator.1password.io/run-env-file.app: "/etc/app.env"
+```
+
+The resulting container command becomes `op run --env-file=/etc/app.env -- <original command>`.
+
+**Note:** the file referenced by `--env-file` must exist inside the container. The injector only adds the `op` binary — you are responsible for mounting the env file (via a `ConfigMap`/`Secret` volume, an init container, or by including it in the image).
+
 ## Troubleshooting
 
 If you can't inject secrets in your pod, make sure:
